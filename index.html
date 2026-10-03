@@ -2,323 +2,116 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>혈압 측정 기록기</title>
-
-  <!-- PWA & 모바일 앱 설정 -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2563eb">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="혈압기록">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
-
-  <!-- Tailwind CSS & Tesseract OCR CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
-  <style>
-    body {
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>혈압 측정 및 기록</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- 차트 생성을 위한 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans pb-10">
+<body>
 
   <!-- 상단 헤더 -->
-  <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
-    <div class="flex items-center space-x-2">
-      <svg class="w-7 h-7 text-red-300" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
-      </svg>
-      <h1 class="text-xl font-bold tracking-tight">혈압 측정 및 기록</h1>
-    </div>
-    <button onclick="togglePwaGuide()" class="text-xs bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded-full border border-blue-400">
-      📲 앱 설치 방법
-    </button>
+  <header class="app-header">
+    <h1>❤️ 혈압 측정 및 기록</h1>
   </header>
 
-  <!-- PWA 홈화면 추가 안내 모달 -->
-  <div id="pwaModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-lg text-slate-900">앱 형태로 실행하기 (PWA)</h3>
-        <button onclick="togglePwaGuide()" class="text-gray-400 text-xl font-bold">&times;</button>
-      </div>
-      <div class="text-sm space-y-3 text-slate-600">
-        <p class="font-medium text-slate-800">주소창 없이 홈 화면 아이콘으로 앱처럼 사용하는 방법:</p>
-        <div class="bg-slate-100 p-3 rounded-lg">
-          <p class="font-semibold text-blue-600 mb-1">📱 아이폰 (iOS Safari)</p>
-          <ol class="list-decimal list-inside space-y-1 text-xs">
-            <li>Safari에서 하단 <b>[공유]</b> 아이콘 클릭</li>
-            <li><b>'홈 화면에 추가'</b> 선택</li>
-          </ol>
+  <!-- 하단/상단 탭 네비게이션 메인 메뉴 -->
+  <nav class="tab-menu">
+    <button class="tab-btn active" onclick="openTab('tab-input')">📷 측정/입력</button>
+    <button class="tab-btn" onclick="openTab('tab-list')">📋 기록 보기</button>
+    <button class="tab-btn" onclick="openTab('tab-calendar')">📅 달력 보기</button>
+    <button class="tab-btn" onclick="openTab('tab-chart')">📈 차트 보기</button>
+    <button class="tab-btn" onclick="openTab('tab-settings')">⚙️ 폰트 설정</button>
+  </nav>
+
+  <main class="container">
+
+    <!-- 1. 혈압 측정/입력 탭 -->
+    <section id="tab-input" class="tab-content active">
+      <div class="card">
+        <h3>📷 혈압계 촬영 / 인식</h3>
+        <div class="btn-group">
+          <label for="cameraInput" class="icon-btn">📷 카메라로 촬영</label>
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="processImage(event)">
+          
+          <label for="galleryInput" class="icon-btn">🖼️ 갤러리 선택</label>
+          <input type="file" id="galleryInput" accept="image/*" onchange="processImage(event)">
         </div>
-        <div class="bg-slate-100 p-3 rounded-lg">
-          <p class="font-semibold text-green-600 mb-1">🤖 안드로이드 (Android Chrome)</p>
-          <ol class="list-decimal list-inside space-y-1 text-xs">
-            <li>Chrome 우측 상단 <b>[⋮]</b> 메뉴 클릭</li>
-            <li><b>'앱 설치'</b> 또는 <b>'홈 화면에 추가'</b> 선택</li>
-          </ol>
+
+        <!-- 이미지 보정 및 가공 캔버스 (LCD 화면 검은 뭉개짐 방지) -->
+        <div class="image-preview-box">
+          <canvas id="imageCanvas"></canvas>
+          <p id="imageStatusHint">혈압계 사진을 등록하면 LCD 보정 이미지가 표시됩니다.</p>
         </div>
-      </div>
-      <button onclick="togglePwaGuide()" class="w-full py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm">확인했습니다</button>
-    </div>
-  </div>
 
-  <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-5">
-
-    <!-- Section 1: 촬영 및 OCR 인식 -->
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <span>📷</span> 혈압계 촬영/인식
-        </h2>
-        <span class="text-xs text-slate-400">LCD 숫자 보정 인식</span>
-      </div>
-
-      <!-- 촬영 / Gallery 선택 버튼 -->
-      <div class="grid grid-cols-2 gap-3">
-        <label class="flex flex-col items-center justify-center p-3 bg-blue-50 border-2 border-dashed border-blue-300 hover:bg-blue-100 rounded-xl cursor-pointer text-center transition">
-          <span class="text-2xl mb-1">📸</span>
-          <span class="text-xs font-semibold text-blue-700">카메라로 촬영</span>
-          <input type="file" accept="image/*" capture="environment" onchange="handleImageSelect(event)" class="hidden">
-        </label>
-        
-        <label class="flex flex-col items-center justify-center p-3 bg-slate-100 border-2 border-dashed border-slate-300 hover:bg-slate-200 rounded-xl cursor-pointer text-center transition">
-          <span class="text-2xl mb-1">🖼️</span>
-          <span class="text-xs font-semibold text-slate-700">갤러리 선택</span>
-          <input type="file" accept="image/*" onchange="handleImageSelect(event)" class="hidden">
-        </label>
-      </div>
-
-      <!-- 처리 캔버스 / 로딩 -->
-      <div id="previewContainer" class="hidden space-y-2">
-        <div class="relative bg-black rounded-lg overflow-hidden max-h-56 flex items-center justify-center">
-          <canvas id="processedCanvas" class="max-h-56 object-contain"></canvas>
-          <div id="loadingOverlay" class="hidden absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white text-xs space-y-2">
-            <div class="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <p id="loadingStatus">7-세그먼트 선명화 처리 중...</p>
+        <!-- 입력 폼 -->
+        <div class="input-grid">
+          <div class="input-item">
+            <label>수축기 (SYS)</label>
+            <input type="number" id="sysInput" placeholder="120">
+            <span>mmHg</span>
           </div>
-        </div>
-      </div>
-
-      <!-- 측정값 확인 및 수동 수정 폼 -->
-      <form id="bpForm" onsubmit="saveRecord(event)" class="space-y-3 pt-2 border-t">
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">수축기 (SYS)</label>
-            <input type="number" id="sysInput" required min="50" max="260" placeholder="120"
-              class="w-full text-center text-lg font-bold border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
-            <span class="text-[10px] text-slate-400 block text-center">mmHg</span>
+          <div class="input-item">
+            <label>이완기 (DIA)</label>
+            <input type="number" id="diaInput" placeholder="80">
+            <span>mmHg</span>
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">이완기 (DIA)</label>
-            <input type="number" id="diaInput" required min="30" max="180" placeholder="80"
-              class="w-full text-center text-lg font-bold border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
-            <span class="text-[10px] text-slate-400 block text-center">mmHg</span>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">맥박 (PULSE)</label>
-            <input type="number" id="pulseInput" required min="30" max="220" placeholder="70"
-              class="w-full text-center text-lg font-bold border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
-            <span class="text-[10px] text-slate-400 block text-center">/min</span>
+          <div class="input-item">
+            <label>맥박 (PULSE)</label>
+            <input type="number" id="pulseInput" placeholder="70">
+            <span>/min</span>
           </div>
         </div>
 
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-1">
-          <span>💾</span> 데이터 저장하기
-        </button>
-      </form>
+        <button class="save-btn" onclick="saveRecord()">💾 데이터 저장하기</button>
+      </div>
     </section>
 
-    <!-- Section 2: 저장된 기록 리스트 -->
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <span>📊</span> 측정 기록
-        </h2>
-        <button onclick="clearAllData()" class="text-xs text-red-500 hover:underline">전체 삭제</button>
+    <!-- 2. 기록 보기 탭 -->
+    <section id="tab-list" class="tab-content">
+      <div class="card">
+        <div class="card-header-flex">
+          <h3>📋 측정 기록 목록</h3>
+          <button class="danger-btn" onclick="clearAllData()">전체 삭제</button>
+        </div>
+        <ul id="recordList" class="record-list"></ul>
       </div>
+    </section>
 
-      <div id="recordsList" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-        <!-- LocalStorage 데이터 동적 로드 -->
+    <!-- 3. 달력 보기 탭 -->
+    <section id="tab-calendar" class="tab-content">
+      <div class="card">
+        <h3>📅 월별 혈압 달력</h3>
+        <div id="calendarView"></div>
+      </div>
+    </section>
+
+    <!-- 4. 선형 차트 보기 탭 -->
+    <section id="tab-chart" class="tab-content">
+      <div class="card">
+        <h3>📈 혈압 변화 추이</h3>
+        <canvas id="bpChart"></canvas>
+      </div>
+    </section>
+
+    <!-- 5. 폰트 설정 탭 -->
+    <section id="tab-settings" class="tab-content">
+      <div class="card">
+        <h3>⚙️ 앱 글꼴 및 크기 설정</h3>
+        <div class="setting-item">
+          <label for="fontSizeSelect">글자 크기:</label>
+          <select id="fontSizeSelect" onchange="changeFontSize(this.value)">
+            <option value="14px">작게</option>
+            <option value="16px" selected>보통</option>
+            <option value="18px">쁘게 (크게)</option>
+            <option value="20px">매우 크게</option>
+          </select>
+        </div>
       </div>
     </section>
 
   </main>
 
-  <script>
-    // PWA Service Worker 등록
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW 실패:', err));
-    }
-
-    function togglePwaGuide() {
-      document.getElementById('pwaModal').classList.toggle('hidden');
-    }
-
-    // 이미지 수신 및 Canvas 흑백 전처리 후 OCR 인식
-    async function handleImageSelect(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const previewContainer = document.getElementById('previewContainer');
-      const canvas = document.getElementById('processedCanvas');
-      const ctx = canvas.getContext('2d');
-      const loadingOverlay = document.getElementById('loadingOverlay');
-      const loadingStatus = document.getElementById('loadingStatus');
-
-      previewContainer.classList.remove('hidden');
-      loadingOverlay.classList.remove('hidden');
-      loadingStatus.innerText = "이미지 전처리 및 숫자 추출 중...";
-
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-
-      img.onload = async () => {
-        const maxDim = 800;
-        let scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        // 7-세그먼트 LCD 흑백 대비 보정 알고리즘
-        for (let i = 0; i < data.length; i += 4) {
-          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          const val = avg < 110 ? 0 : 255;
-          data[i] = val;
-          data[i + 1] = val;
-          data[i + 2] = val;
-        }
-        ctx.putImageData(imageData, 0, 0);
-
-        try {
-          const worker = await Tesseract.createWorker('eng');
-          await worker.setParameters({
-            tessedit_char_whitelist: '0123456789',
-            tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK
-          });
-
-          const ret = await worker.recognize(canvas);
-          await worker.terminate();
-
-          const numbers = ret.data.text.match(/\d+/g);
-
-          if (numbers && numbers.length >= 2) {
-            const validNumbers = numbers.map(Number).filter(n => n >= 30 && n <= 250);
-            if (validNumbers.length >= 3) {
-              document.getElementById('sysInput').value = validNumbers[0];
-              document.getElementById('diaInput').value = validNumbers[1];
-              document.getElementById('pulseInput').value = validNumbers[2];
-            } else if (validNumbers.length === 2) {
-              document.getElementById('sysInput').value = validNumbers[0];
-              document.getElementById('diaInput').value = validNumbers[1];
-            }
-          }
-        } catch (err) {
-          console.error("OCR 인식 에러:", err);
-        } finally {
-          loadingOverlay.classList.add('hidden');
-        }
-      };
-    }
-
-    // LocalStorage 데이터 관리
-    const STORAGE_KEY = 'bp_records_data_v1';
-
-    function getRecords() {
-      const data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : [];
-    }
-
-    function saveRecord(e) {
-      e.preventDefault();
-      const sys = document.getElementById('sysInput').value;
-      const dia = document.getElementById('diaInput').value;
-      const pulse = document.getElementById('pulseInput').value;
-
-      if (!sys || !dia || !pulse) return;
-
-      const record = {
-        id: Date.now(),
-        date: new Date().toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        sys: Number(sys),
-        dia: Number(dia),
-        pulse: Number(pulse)
-      };
-
-      const records = getRecords();
-      records.unshift(record);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-
-      document.getElementById('bpForm').reset();
-      document.getElementById('previewContainer').classList.add('hidden');
-      renderRecords();
-    }
-
-    function deleteRecord(id) {
-      let records = getRecords();
-      records = records.filter(r => r.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-      renderRecords();
-    }
-
-    function clearAllData() {
-      if (confirm("모든 혈압 기록을 삭제하시겠습니까?")) {
-        localStorage.removeItem(STORAGE_KEY);
-        renderRecords();
-      }
-    }
-
-    function renderRecords() {
-      const listEl = document.getElementById('recordsList');
-      const records = getRecords();
-
-      if (records.length === 0) {
-        listEl.innerHTML = `
-          <div class="text-center py-8 text-slate-400 text-xs">
-            저장된 혈압 기록이 없습니다.<br>사진을 찍거나 직접 입력해 보세요.
-          </div>`;
-        return;
-      }
-
-      listEl.innerHTML = records.map(r => {
-        let statusColor = "bg-green-100 text-green-700 border-green-200";
-        let statusText = "정상";
-        if (r.sys >= 140 || r.dia >= 90) {
-          statusColor = "bg-red-100 text-red-700 border-red-200";
-          statusText = "고혈압";
-        } else if (r.sys >= 120 || r.dia >= 80) {
-          statusColor = "bg-amber-100 text-amber-700 border-amber-200";
-          statusText = "주의";
-        }
-
-        return `
-          <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <div>
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-xs font-semibold text-slate-500">${r.date}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full border font-bold ${statusColor}">${statusText}</span>
-              </div>
-              <div class="text-sm font-bold text-slate-800">
-                ${r.sys} / ${r.dia} <span class="text-xs font-normal text-slate-500">mmHg</span>
-                <span class="mx-1 text-slate-300">|</span> 
-                ❤️ ${r.pulse} <span class="text-xs font-normal text-slate-500">bpm</span>
-              </div>
-            </div>
-            <button onclick="deleteRecord(${r.id})" class="text-slate-400 hover:text-red-500 p-1 text-sm">&times;</button>
-          </div>
-        `;
-      }).join('');
-    }
-
-    document.addEventListener('DOMContentLoaded', renderRecords);
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
