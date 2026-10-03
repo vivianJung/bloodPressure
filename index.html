@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>혈압 측정 및 기록</title>
   <link rel="stylesheet" href="style.css">
-  <!-- 차트 생성을 위한 라이브러리 -->
+  <!-- 차트 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- 이미지 텍스트 인식(OCR) 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 
@@ -15,7 +17,7 @@
     <h1>❤️ 혈압 측정 및 기록</h1>
   </header>
 
-  <!-- 하단/상단 탭 네비게이션 메인 메뉴 -->
+  <!-- 상단 탭 메뉴 -->
   <nav class="tab-menu">
     <button class="tab-btn active" onclick="openTab('tab-input')">📷 측정/입력</button>
     <button class="tab-btn" onclick="openTab('tab-list')">📋 기록 보기</button>
@@ -29,7 +31,7 @@
     <!-- 1. 혈압 측정/입력 탭 -->
     <section id="tab-input" class="tab-content active">
       <div class="card">
-        <h3>📷 혈압계 촬영 / 인식</h3>
+        <h3>📷 혈압계 촬영 / 자동 인식</h3>
         <div class="btn-group">
           <label for="cameraInput" class="icon-btn">📷 카메라로 촬영</label>
           <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="processImage(event)">
@@ -38,27 +40,27 @@
           <input type="file" id="galleryInput" accept="image/*" onchange="processImage(event)">
         </div>
 
-        <!-- 이미지 보정 및 가공 캔버스 (LCD 화면 검은 뭉개짐 방지) -->
+        <!-- 이미지 및 안내 문구 -->
         <div class="image-preview-box">
           <canvas id="imageCanvas"></canvas>
-          <p id="imageStatusHint">혈압계 사진을 등록하면 LCD 보정 이미지가 표시됩니다.</p>
+          <p id="imageStatusHint">혈압계 사진을 선택하면 숫자를 자동으로 읽어옵니다.</p>
         </div>
 
         <!-- 입력 폼 -->
         <div class="input-grid">
           <div class="input-item">
             <label>수축기 (SYS)</label>
-            <input type="number" id="sysInput" placeholder="120">
+            <input type="number" id="sysInput" placeholder="--">
             <span>mmHg</span>
           </div>
           <div class="input-item">
             <label>이완기 (DIA)</label>
-            <input type="number" id="diaInput" placeholder="80">
+            <input type="number" id="diaInput" placeholder="--">
             <span>mmHg</span>
           </div>
           <div class="input-item">
             <label>맥박 (PULSE)</label>
-            <input type="number" id="pulseInput" placeholder="70">
+            <input type="number" id="pulseInput" placeholder="--">
             <span>/min</span>
           </div>
         </div>
@@ -103,7 +105,7 @@
           <select id="fontSizeSelect" onchange="changeFontSize(this.value)">
             <option value="14px">작게</option>
             <option value="16px" selected>보통</option>
-            <option value="18px">쁘게 (크게)</option>
+            <option value="18px">크게</option>
             <option value="20px">매우 크게</option>
           </select>
         </div>
