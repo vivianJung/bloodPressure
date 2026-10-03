@@ -3,618 +3,322 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>혈압 관리 매니저</title>
-  
-  <!-- iOS PWA 웹앱 설정 -->
+  <title>혈압 측정 기록기</title>
+
+  <!-- PWA & 모바일 앱 설정 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="혈압노트">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="혈압기록">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
 
-  <!-- Tailwind CSS & Lucide Icons -->
+  <!-- Tailwind CSS & Tesseract OCR CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Tesseract.js (카메라 OCR) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
-    :root {
-      --app-font-scale: 100%;
-    }
-    html {
-      font-size: var(--app-font-scale);
-    }
     body {
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 pb-24 font-sans min-h-screen">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans pb-10">
 
-  <!-- 상단 헤더 (알림 버튼 제거) -->
-  <header class="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 z-30 px-4 py-3 text-center">
-    <h1 class="text-lg font-bold text-slate-900 inline-flex items-center gap-2">
-      <i data-lucide="heart-pulse" class="text-rose-500"></i> 혈압 노트
-    </h1>
+  <!-- 상단 헤더 -->
+  <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
+    <div class="flex items-center space-x-2">
+      <svg class="w-7 h-7 text-red-300" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+      </svg>
+      <h1 class="text-xl font-bold tracking-tight">혈압 측정 및 기록</h1>
+    </div>
+    <button onclick="togglePwaGuide()" class="text-xs bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded-full border border-blue-400">
+      📲 앱 설치 방법
+    </button>
   </header>
 
-  <!-- 메인 컨텐츠 영역 -->
-  <main class="max-w-md mx-auto p-4 space-y-6">
+  <!-- PWA 홈화면 추가 안내 모달 -->
+  <div id="pwaModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-lg text-slate-900">앱 형태로 실행하기 (PWA)</h3>
+        <button onclick="togglePwaGuide()" class="text-gray-400 text-xl font-bold">&times;</button>
+      </div>
+      <div class="text-sm space-y-3 text-slate-600">
+        <p class="font-medium text-slate-800">주소창 없이 홈 화면 아이콘으로 앱처럼 사용하는 방법:</p>
+        <div class="bg-slate-100 p-3 rounded-lg">
+          <p class="font-semibold text-blue-600 mb-1">📱 아이폰 (iOS Safari)</p>
+          <ol class="list-decimal list-inside space-y-1 text-xs">
+            <li>Safari에서 하단 <b>[공유]</b> 아이콘 클릭</li>
+            <li><b>'홈 화면에 추가'</b> 선택</li>
+          </ol>
+        </div>
+        <div class="bg-slate-100 p-3 rounded-lg">
+          <p class="font-semibold text-green-600 mb-1">🤖 안드로이드 (Android Chrome)</p>
+          <ol class="list-decimal list-inside space-y-1 text-xs">
+            <li>Chrome 우측 상단 <b>[⋮]</b> 메뉴 클릭</li>
+            <li><b>'앱 설치'</b> 또는 <b>'홈 화면에 추가'</b> 선택</li>
+          </ol>
+        </div>
+      </div>
+      <button onclick="togglePwaGuide()" class="w-full py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm">확인했습니다</button>
+    </div>
+  </div>
 
-    <!-- TAB 1: 데이터 입력 -->
-    <section id="tab-input" class="tab-content">
-      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
-        <h2 class="text-base font-bold text-slate-700 flex items-center gap-1.5">
-          <i data-lucide="plus-circle" class="w-5 h-5 text-blue-500"></i> 혈압 데이터 입력
+  <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-5">
+
+    <!-- Section 1: 촬영 및 OCR 인식 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <span>📷</span> 혈압계 촬영/인식
         </h2>
+        <span class="text-xs text-slate-400">LCD 숫자 보정 인식</span>
+      </div>
 
-        <!-- 카메라 / 앨범 사진 선택 버튼 -->
-        <div class="bg-blue-50/70 border border-blue-100 rounded-xl p-4 text-center space-y-2">
-          <p class="text-xs text-blue-600 font-medium">촬영 또는 앨범 사진으로 자동 인식</p>
-          <label class="inline-flex items-center justify-center gap-2 w-full py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-md active:scale-95 transition cursor-pointer">
-            <i data-lucide="image-plus"></i> 사진 촬영 / 앨범에서 선택
-            <!-- capture 속성을 제거하여 앨범 선택 및 촬영 모두 지원 -->
-            <input type="file" id="cameraInput" accept="image/*" class="hidden" onchange="processImageOCR(this)">
-          </label>
-          <div id="ocrSpinner" class="hidden text-xs text-blue-600 font-medium flex items-center justify-center gap-2 pt-1">
-            <i data-lucide="loader-2" class="animate-spin w-4 h-4"></i> 이미지를 보정하고 분석 중입니다...
+      <!-- 촬영 / Gallery 선택 버튼 -->
+      <div class="grid grid-cols-2 gap-3">
+        <label class="flex flex-col items-center justify-center p-3 bg-blue-50 border-2 border-dashed border-blue-300 hover:bg-blue-100 rounded-xl cursor-pointer text-center transition">
+          <span class="text-2xl mb-1">📸</span>
+          <span class="text-xs font-semibold text-blue-700">카메라로 촬영</span>
+          <input type="file" accept="image/*" capture="environment" onchange="handleImageSelect(event)" class="hidden">
+        </label>
+        
+        <label class="flex flex-col items-center justify-center p-3 bg-slate-100 border-2 border-dashed border-slate-300 hover:bg-slate-200 rounded-xl cursor-pointer text-center transition">
+          <span class="text-2xl mb-1">🖼️</span>
+          <span class="text-xs font-semibold text-slate-700">갤러리 선택</span>
+          <input type="file" accept="image/*" onchange="handleImageSelect(event)" class="hidden">
+        </label>
+      </div>
+
+      <!-- 처리 캔버스 / 로딩 -->
+      <div id="previewContainer" class="hidden space-y-2">
+        <div class="relative bg-black rounded-lg overflow-hidden max-h-56 flex items-center justify-center">
+          <canvas id="processedCanvas" class="max-h-56 object-contain"></canvas>
+          <div id="loadingOverlay" class="hidden absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white text-xs space-y-2">
+            <div class="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <p id="loadingStatus">7-세그먼트 선명화 처리 중...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 측정값 확인 및 수동 수정 폼 -->
+      <form id="bpForm" onsubmit="saveRecord(event)" class="space-y-3 pt-2 border-t">
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">수축기 (SYS)</label>
+            <input type="number" id="sysInput" required min="50" max="260" placeholder="120"
+              class="w-full text-center text-lg font-bold border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
+            <span class="text-[10px] text-slate-400 block text-center">mmHg</span>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">이완기 (DIA)</label>
+            <input type="number" id="diaInput" required min="30" max="180" placeholder="80"
+              class="w-full text-center text-lg font-bold border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
+            <span class="text-[10px] text-slate-400 block text-center">mmHg</span>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">맥박 (PULSE)</label>
+            <input type="number" id="pulseInput" required min="30" max="220" placeholder="70"
+              class="w-full text-center text-lg font-bold border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
+            <span class="text-[10px] text-slate-400 block text-center">/min</span>
           </div>
         </div>
 
-        <!-- 수동 입력 폼 -->
-        <form id="bpForm" onsubmit="saveRecord(event)" class="space-y-3 pt-2">
-          <input type="hidden" id="editId" value="">
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="text-xs text-slate-500 font-medium">날짜</label>
-              <input type="date" id="inputDate" required class="w-full mt-1 p-2.5 bg-slate-100 rounded-xl border-none text-sm font-semibold text-slate-700">
-            </div>
-            <div>
-              <label class="text-xs text-slate-500 font-medium">시간</label>
-              <input type="time" id="inputTime" required class="w-full mt-1 p-2.5 bg-slate-100 rounded-xl border-none text-sm font-semibold text-slate-700">
-            </div>
-          </div>
-
-          <div class="grid grid-cols-3 gap-2 pt-1">
-            <div>
-              <label class="text-xs text-blue-600 font-bold">수축기 (SYS)</label>
-              <input type="number" id="inputSys" placeholder="120" required class="w-full mt-1 p-3 bg-blue-50 text-blue-900 font-bold text-lg rounded-xl border border-blue-200 text-center">
-            </div>
-            <div>
-              <label class="text-xs text-rose-600 font-bold">이완기 (DIA)</label>
-              <input type="number" id="inputDia" placeholder="80" required class="w-full mt-1 p-3 bg-rose-50 text-rose-900 font-bold text-lg rounded-xl border border-rose-200 text-center">
-            </div>
-            <div>
-              <label class="text-xs text-amber-600 font-bold">맥박 (Pulse)</label>
-              <input type="number" id="inputPulse" placeholder="70" required class="w-full mt-1 p-3 bg-amber-50 text-amber-900 font-bold text-lg rounded-xl border border-amber-200 text-center">
-            </div>
-          </div>
-
-          <button type="submit" id="submitBtn" class="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-md hover:bg-slate-800 transition active:scale-95 mt-4">
-            기록 저장하기
-          </button>
-        </form>
-      </div>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-1">
+          <span>💾</span> 데이터 저장하기
+        </button>
+      </form>
     </section>
 
-    <!-- TAB 2: 차트 보기 -->
-    <section id="tab-chart" class="tab-content hidden space-y-4">
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="text-sm font-bold text-slate-700">혈압 추이 차트</h2>
-          <div class="flex gap-1 text-xs">
-            <button onclick="setChartPeriod(7)" class="period-btn px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 font-bold" data-period="7">1주</button>
-            <button onclick="setChartPeriod(30)" class="period-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-600" data-period="30">1달</button>
-            <button onclick="setChartPeriod(60)" class="period-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-600" data-period="60">2달</button>
-            <button onclick="setChartPeriod(90)" class="period-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-600" data-period="90">3달</button>
-          </div>
-        </div>
-        <div class="relative h-64 w-full">
-          <canvas id="bpChart"></canvas>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 3: 달력 보기 -->
-    <section id="tab-calendar" class="tab-content hidden space-y-4">
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-        <div class="flex justify-between items-center mb-4">
-          <button onclick="changeMonth(-1)" class="p-1"><i data-lucide="chevron-left"></i></button>
-          <h2 id="calendarTitle" class="text-base font-bold text-slate-800">2026년 10월</h2>
-          <button onclick="changeMonth(1)" class="p-1"><i data-lucide="chevron-right"></i></button>
-        </div>
-        <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 mb-2">
-          <div class="text-rose-500">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
-        </div>
-        <div id="calendarGrid" class="grid grid-cols-7 gap-1 text-center text-sm"></div>
-      </div>
-      <div id="calendarDetail" class="space-y-2"></div>
-    </section>
-
-    <!-- TAB 4: 리스트 보기 -->
-    <section id="tab-list" class="tab-content hidden space-y-3">
-      <div class="flex justify-between items-center px-1">
-        <h2 class="text-sm font-bold text-slate-700">전체 기록 목록</h2>
-        <span id="recordCount" class="text-xs text-slate-500 font-medium">총 0건</span>
-      </div>
-      <div id="recordList" class="space-y-2.5"></div>
-    </section>
-
-    <!-- TAB 5: 백업 및 설정 -->
-    <section id="tab-settings" class="tab-content hidden space-y-4">
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-4">
-        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-          <i data-lucide="settings"></i> 앱 설정 & 백업
+    <!-- Section 2: 저장된 기록 리스트 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+      <div class="flex justify-between items-center">
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <span>📊</span> 측정 기록
         </h2>
+        <button onclick="clearAllData()" class="text-xs text-red-500 hover:underline">전체 삭제</button>
+      </div>
 
-        <!-- 글자 크기 조정 -->
-        <div class="space-y-2 border-b border-slate-100 pb-4">
-          <label class="text-xs font-semibold text-slate-600">화면 글자 크기 조정</label>
-          <div class="flex items-center gap-3">
-            <span class="text-xs">작게</span>
-            <input type="range" id="fontScaleRange" min="90" max="115" step="5" value="100" oninput="changeFontScale(this.value)" class="w-full accent-blue-600">
-            <span class="text-sm font-bold">크게</span>
-          </div>
-        </div>
-
-        <!-- 데이터 백업/전송 -->
-        <div class="space-y-2">
-          <label class="text-xs font-semibold text-slate-600">데이터 백업 내보내기</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button onclick="backupViaEmail()" class="flex items-center justify-center gap-2 p-3 bg-slate-100 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-200">
-              <i data-lucide="mail" class="w-4 h-4"></i> 이메일 전송
-            </button>
-            <button onclick="backupViaNotes()" class="flex items-center justify-center gap-2 p-3 bg-amber-50 text-amber-800 rounded-xl text-xs font-bold hover:bg-amber-100">
-              <i data-lucide="file-text" class="w-4 h-4"></i> 메모장 복사
-            </button>
-          </div>
-        </div>
-
-        <!-- 백업 알림 확인 -->
-        <div class="pt-2">
-          <button onclick="checkBackupReminder(true)" class="w-full p-2.5 border border-slate-200 text-slate-600 text-xs rounded-xl font-medium">
-            백업 상태 수동 점검
-          </button>
-        </div>
+      <div id="recordsList" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+        <!-- LocalStorage 데이터 동적 로드 -->
       </div>
     </section>
 
   </main>
 
-  <!-- 하단 탭 바 -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40">
-    <div class="max-w-md mx-auto grid grid-cols-5 text-center py-2 text-slate-400">
-      <button onclick="switchTab('input')" id="nav-input" class="nav-btn text-blue-600 flex flex-col items-center gap-0.5">
-        <i data-lucide="plus-circle" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium">입력</span>
-      </button>
-      <button onclick="switchTab('chart')" id="nav-chart" class="nav-btn flex flex-col items-center gap-0.5">
-        <i data-lucide="line-chart" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium">차트</span>
-      </button>
-      <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-btn flex flex-col items-center gap-0.5">
-        <i data-lucide="calendar" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium">달력</span>
-      </button>
-      <button onclick="switchTab('list')" id="nav-list" class="nav-btn flex flex-col items-center gap-0.5">
-        <i data-lucide="list" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium">목록</span>
-      </button>
-      <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn flex flex-col items-center gap-0.5">
-        <i data-lucide="settings" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium">설정</span>
-      </button>
-    </div>
-  </nav>
-
-  <!-- JS 로직 -->
   <script>
-    // State
-    let records = JSON.parse(localStorage.getItem('bp_records') || '[]');
-    let chartInstance = null;
-    let chartPeriod = 7;
-    let currentDate = new Date();
-
-    // Init
-    window.addEventListener('DOMContentLoaded', () => {
-      lucide.createIcons();
-      resetFormDateTime();
-      renderList();
-      checkBackupReminder(false);
-      
-      const savedScale = localStorage.getItem('bp_font_scale');
-      if (savedScale) {
-        changeFontScale(savedScale);
-        document.getElementById('fontScaleRange').value = savedScale;
-      }
-    });
-
-    function resetFormDateTime() {
-      const now = new Date();
-      document.getElementById('inputDate').value = now.toISOString().split('T')[0];
-      document.getElementById('inputTime').value = now.toTimeString().slice(0, 5);
+    // PWA Service Worker 등록
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW 실패:', err));
     }
 
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('text-blue-600'));
-      
-      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-      document.getElementById(`nav-${tabId}`).classList.add('text-blue-600');
-
-      if (tabId === 'chart') renderChart();
-      if (tabId === 'calendar') renderCalendar();
-      if (tabId === 'list') renderList();
+    function togglePwaGuide() {
+      document.getElementById('pwaModal').classList.toggle('hidden');
     }
 
-    // --- 1단계: 사진 로드 & 날짜 세팅 & OCR 전처리 ---
-    async function processImageOCR(input) {
-      if (!input.files || !input.files[0]) return;
-      const file = input.files[0];
-      const spinner = document.getElementById('ocrSpinner');
-      spinner.classList.remove('hidden');
+    // 이미지 수신 및 Canvas 흑백 전처리 후 OCR 인식
+    async function handleImageSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
 
-      // 1. 사진 파일의 촬영/생성 날짜 및 시간 자동 적용
-      if (file.lastModified) {
-        const photoDate = new Date(file.lastModified);
-        const yyyy = photoDate.getFullYear();
-        const mm = String(photoDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(photoDate.getDate()).padStart(2, '0');
-        const hh = String(photoDate.getHours()).padStart(2, '0');
-        const min = String(photoDate.getMinutes()).padStart(2, '0');
-        
-        document.getElementById('inputDate').value = `${yyyy}-${mm}-${dd}`;
-        document.getElementById('inputTime').value = `${hh}:${min}`;
-      }
-
-      try {
-        // 2. 이미지 로드 및 LCD 숫자 인식을 위한 흑백 고대비 전처리
-        const img = await loadImage(file);
-        const processedImageBase64 = preprocessLCDImage(img);
-
-        // 3. Tesseract OCR 수행 (숫자 전용 설정)
-        const worker = await Tesseract.createWorker('eng');
-        await worker.setParameters({
-          tessedit_char_whitelist: '0123456789',
-          tessedit_pageseg_mode: '6' // 단일 텍스트 블록
-        });
-
-        const { data: { text } } = await worker.recognize(processedImageBase64);
-        await worker.terminate();
-
-        const numbers = text.match(/\b\d{2,3}\b/g)?.map(Number) || [];
-
-        if (numbers.length >= 3) {
-          document.getElementById('inputSys').value = numbers[0];
-          document.getElementById('inputDia').value = numbers[1];
-          document.getElementById('inputPulse').value = numbers[2];
-          alert(`사진 정보가 자동으로 적용되었습니다!\n· 날짜/시간: ${document.getElementById('inputDate').value} ${document.getElementById('inputTime').value}\n· 수축기: ${numbers[0]}, 이완기: ${numbers[1]}, 맥박: ${numbers[2]}`);
-        } else if (numbers.length > 0) {
-          if (numbers[0]) document.getElementById('inputSys').value = numbers[0];
-          if (numbers[1]) document.getElementById('inputDia').value = numbers[1];
-          if (numbers[2]) document.getElementById('inputPulse').value = numbers[2];
-          alert("일부 수치만 인식되었습니다. 미인식된 부분은 수치 확인 후 입력해 주세요.");
-        } else {
-          alert("사진에서 숫자를 자동으로 읽지 못했습니다. 사진 정보를 기반으로 날짜와 시간은 설정되었으니 숫자는 수동으로 입력해 주세요.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("사진 분석 중 오류가 발생했습니다. 수치만 수동으로 입력해 주세요.");
-      } finally {
-        spinner.classList.add('hidden');
-        input.value = '';
-      }
-    }
-
-    // 이미지 파일 로드 헬퍼
-    function loadImage(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    // LCD 디지털 화면 이진화(Binarization) 전처리 함수
-    function preprocessLCDImage(img) {
-      const canvas = document.createElement('canvas');
+      const previewContainer = document.getElementById('previewContainer');
+      const canvas = document.getElementById('processedCanvas');
       const ctx = canvas.getContext('2d');
-      const maxDim = 1000;
-      let width = img.width;
-      let height = img.height;
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const loadingStatus = document.getElementById('loadingStatus');
 
-      if (width > maxDim || height > maxDim) {
-        if (width > height) {
-          height = Math.round((height * maxDim) / width);
-          width = maxDim;
-        } else {
-          width = Math.round((width * maxDim) / height);
-          height = maxDim;
+      previewContainer.classList.remove('hidden');
+      loadingOverlay.classList.remove('hidden');
+      loadingStatus.innerText = "이미지 전처리 및 숫자 추출 중...";
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+
+      img.onload = async () => {
+        const maxDim = 800;
+        let scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // 7-세그먼트 LCD 흑백 대비 보정 알고리즘
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          const val = avg < 110 ? 0 : 255;
+          data[i] = val;
+          data[i + 1] = val;
+          data[i + 2] = val;
         }
-      }
-      canvas.width = width;
-      canvas.height = height;
+        ctx.putImageData(imageData, 0, 0);
 
-      ctx.drawImage(img, 0, 0, width, height);
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const d = imgData.data;
+        try {
+          const worker = await Tesseract.createWorker('eng');
+          await worker.setParameters({
+            tessedit_char_whitelist: '0123456789',
+            tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK
+          });
 
-      // 흑백 이진화 처리 (대비 극대화)
-      for (let i = 0; i < d.length; i += 4) {
-        const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        const v = gray < 115 ? 0 : 255; // 115 기준 흑/백 분리
-        d[i] = v;
-        d[i + 1] = v;
-        d[i + 2] = v;
-      }
-      ctx.putImageData(imgData, 0, 0);
-      return canvas.toDataURL('image/jpeg');
+          const ret = await worker.recognize(canvas);
+          await worker.terminate();
+
+          const numbers = ret.data.text.match(/\d+/g);
+
+          if (numbers && numbers.length >= 2) {
+            const validNumbers = numbers.map(Number).filter(n => n >= 30 && n <= 250);
+            if (validNumbers.length >= 3) {
+              document.getElementById('sysInput').value = validNumbers[0];
+              document.getElementById('diaInput').value = validNumbers[1];
+              document.getElementById('pulseInput').value = validNumbers[2];
+            } else if (validNumbers.length === 2) {
+              document.getElementById('sysInput').value = validNumbers[0];
+              document.getElementById('diaInput').value = validNumbers[1];
+            }
+          }
+        } catch (err) {
+          console.error("OCR 인식 에러:", err);
+        } finally {
+          loadingOverlay.classList.add('hidden');
+        }
+      };
     }
 
-    // --- 데이터 저장 & 수정 & 삭제 ---
+    // LocalStorage 데이터 관리
+    const STORAGE_KEY = 'bp_records_data_v1';
+
+    function getRecords() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    }
+
     function saveRecord(e) {
       e.preventDefault();
-      const editId = document.getElementById('editId').value;
-      const date = document.getElementById('inputDate').value;
-      const time = document.getElementById('inputTime').value;
-      const sys = parseInt(document.getElementById('inputSys').value);
-      const dia = parseInt(document.getElementById('inputDia').value);
-      const pulse = parseInt(document.getElementById('inputPulse').value);
+      const sys = document.getElementById('sysInput').value;
+      const dia = document.getElementById('diaInput').value;
+      const pulse = document.getElementById('pulseInput').value;
 
-      if (editId) {
-        if (!confirm("정말 수정하시겠습니까?")) return;
-        const idx = records.findIndex(r => r.id === editId);
-        if (idx !== -1) {
-          records[idx] = { id: editId, date, time, sys, dia, pulse };
-        }
-        document.getElementById('editId').value = '';
-        document.getElementById('submitBtn').innerText = '기록 저장하기';
-      } else {
-        const newRecord = {
-          id: Date.now().toString(),
-          date, time, sys, dia, pulse
-        };
-        records.push(newRecord);
-      }
+      if (!sys || !dia || !pulse) return;
 
-      records.sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`));
-      localStorage.setItem('bp_records', JSON.stringify(records));
-      
-      alert('성공적으로 저장되었습니다.');
+      const record = {
+        id: Date.now(),
+        date: new Date().toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        sys: Number(sys),
+        dia: Number(dia),
+        pulse: Number(pulse)
+      };
+
+      const records = getRecords();
+      records.unshift(record);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+
       document.getElementById('bpForm').reset();
-      resetFormDateTime();
-      renderList();
-    }
-
-    function editRecord(id) {
-      const target = records.find(r => r.id === id);
-      if (!target) return;
-      
-      document.getElementById('editId').value = target.id;
-      document.getElementById('inputDate').value = target.date;
-      document.getElementById('inputTime').value = target.time;
-      document.getElementById('inputSys').value = target.sys;
-      document.getElementById('inputDia').value = target.dia;
-      document.getElementById('inputPulse').value = target.pulse;
-      document.getElementById('submitBtn').innerText = '수정 완료하기';
-      switchTab('input');
+      document.getElementById('previewContainer').classList.add('hidden');
+      renderRecords();
     }
 
     function deleteRecord(id) {
-      if (confirm("정말 삭제하시겠습니까?")) {
-        records = records.filter(r => r.id !== id);
-        localStorage.setItem('bp_records', JSON.stringify(records));
-        renderList();
-        if (!document.getElementById('tab-chart').classList.contains('hidden')) renderChart();
+      let records = getRecords();
+      records = records.filter(r => r.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      renderRecords();
+    }
+
+    function clearAllData() {
+      if (confirm("모든 혈압 기록을 삭제하시겠습니까?")) {
+        localStorage.removeItem(STORAGE_KEY);
+        renderRecords();
       }
     }
 
-    function getBPStatus(sys, dia) {
-      if (sys >= 140 || dia >= 90) return { text: '고혈압', color: 'text-rose-600 bg-rose-50' };
-      if (sys >= 120 || dia >= 80) return { text: '주의', color: 'text-amber-600 bg-amber-50' };
-      if (sys < 90 || dia < 60) return { text: '저혈압', color: 'text-blue-600 bg-blue-50' };
-      return { text: '정상', color: 'text-emerald-600 bg-emerald-50' };
-    }
-
-    // --- 2단계: 추이 분석 차트 ---
-    function setChartPeriod(days) {
-      chartPeriod = days;
-      document.querySelectorAll('.period-btn').forEach(btn => {
-        if (parseInt(btn.dataset.period) === days) {
-          btn.className = 'period-btn px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 font-bold';
-        } else {
-          btn.className = 'period-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-600';
-        }
-      });
-      renderChart();
-    }
-
-    function renderChart() {
-      const ctx = document.getElementById('bpChart').getContext('2d');
-      const now = new Date();
-      const limitDate = new Date();
-      limitDate.setDate(now.getDate() - chartPeriod);
-
-      const filtered = records
-        .filter(r => new Date(r.date) >= limitDate)
-        .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
-
-      const labels = filtered.map(r => r.date.slice(5) + ' ' + r.time);
-      const sysData = filtered.map(r => r.sys);
-      const diaData = filtered.map(r => r.dia);
-      const pulseData = filtered.map(r => r.pulse);
-
-      if (chartInstance) chartInstance.destroy();
-
-      chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            { label: '수축기(SYS)', data: sysData, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3 },
-            { label: '이완기(DIA)', data: diaData, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.3 },
-            { label: '맥박(Pulse)', data: pulseData, borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3 }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom' } },
-          scales: { y: { min: 40, max: 180 } }
-        }
-      });
-    }
-
-    // --- 달력 보기 ---
-    function changeMonth(delta) {
-      currentDate.setMonth(currentDate.getMonth() + delta);
-      renderCalendar();
-    }
-
-    function renderCalendar() {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth();
-      document.getElementById('calendarTitle').innerText = `${year}년 ${month + 1}월`;
-
-      const firstDay = new Date(year, month, 1).getDay();
-      const lastDate = new Date(year, month + 1, 0).getDate();
-      const grid = document.getElementById('calendarGrid');
-      grid.innerHTML = '';
-
-      for (let i = 0; i < firstDay; i++) {
-        grid.innerHTML += `<div></div>`;
-      }
-
-      for (let day = 1; day <= lastDate; day++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayRecords = records.filter(r => r.date === dateStr);
-        let dotHTML = '';
-        
-        if (dayRecords.length > 0) {
-          const hasHigh = dayRecords.some(r => r.sys >= 140 || r.dia >= 90);
-          dotHTML = `<span class="inline-block w-1.5 h-1.5 rounded-full ${hasHigh ? 'bg-rose-500' : 'bg-emerald-500'} mt-0.5"></span>`;
-        }
-
-        grid.innerHTML += `
-          <button onclick="showCalendarDetail('${dateStr}')" class="p-2 hover:bg-slate-100 rounded-xl flex flex-col items-center">
-            <span>${day}</span>
-            ${dotHTML}
-          </button>
-        `;
-      }
-    }
-
-    function showCalendarDetail(dateStr) {
-      const dayRecords = records.filter(r => r.date === dateStr);
-      const detailContainer = document.getElementById('calendarDetail');
-      
-      if (dayRecords.length === 0) {
-        detailContainer.innerHTML = `<p class="text-xs text-slate-400 text-center py-2">${dateStr} 기록이 없습니다.</p>`;
-        return;
-      }
-
-      detailContainer.innerHTML = dayRecords.map(r => {
-        const st = getBPStatus(r.sys, r.dia);
-        return `
-          <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
-            <div>
-              <span class="font-bold text-slate-700">${r.time}</span>
-              <p class="text-slate-500 mt-0.5">${r.sys}/${r.dia} mmHg · ${r.pulse} bpm</p>
-            </div>
-            <span class="px-2 py-1 rounded-md font-bold ${st.color}">${st.text}</span>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // --- 순서별 리스트 보기 ---
-    function renderList() {
-      const listContainer = document.getElementById('recordList');
-      document.getElementById('recordCount').innerText = `총 ${records.length}건`;
+    function renderRecords() {
+      const listEl = document.getElementById('recordsList');
+      const records = getRecords();
 
       if (records.length === 0) {
-        listContainer.innerHTML = `<p class="text-center text-xs text-slate-400 py-8">등록된 혈압 기록이 없습니다.</p>`;
+        listEl.innerHTML = `
+          <div class="text-center py-8 text-slate-400 text-xs">
+            저장된 혈압 기록이 없습니다.<br>사진을 찍거나 직접 입력해 보세요.
+          </div>`;
         return;
       }
 
-      listContainer.innerHTML = records.map(r => {
-        const status = getBPStatus(r.sys, r.dia);
+      listEl.innerHTML = records.map(r => {
+        let statusColor = "bg-green-100 text-green-700 border-green-200";
+        let statusText = "정상";
+        if (r.sys >= 140 || r.dia >= 90) {
+          statusColor = "bg-red-100 text-red-700 border-red-200";
+          statusText = "고혈압";
+        } else if (r.sys >= 120 || r.dia >= 80) {
+          statusColor = "bg-amber-100 text-amber-700 border-amber-200";
+          statusText = "주의";
+        }
+
         return `
-          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
-            <div class="space-y-1">
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-slate-400 font-medium">${r.date} ${r.time}</span>
+          <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-semibold text-slate-500">${r.date}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full border font-bold ${statusColor}">${statusText}</span>
               </div>
-              <div class="text-xl font-black text-slate-800">
-                ${r.sys}<span class="text-slate-400 font-normal text-sm">/</span>${r.dia}
-                <span class="text-xs font-normal text-slate-500 ml-1">mmHg</span>
-                <span class="text-xs font-normal text-slate-400 ml-2">❤️ ${r.pulse} bpm</span>
+              <div class="text-sm font-bold text-slate-800">
+                ${r.sys} / ${r.dia} <span class="text-xs font-normal text-slate-500">mmHg</span>
+                <span class="mx-1 text-slate-300">|</span> 
+                ❤️ ${r.pulse} <span class="text-xs font-normal text-slate-500">bpm</span>
               </div>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${status.color}">${status.text}</span>
-              <button onclick="editRecord('${r.id}')" class="p-1.5 text-slate-400 hover:text-blue-600"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-              <button onclick="deleteRecord('${r.id}')" class="p-1.5 text-slate-400 hover:text-rose-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-            </div>
+            <button onclick="deleteRecord(${r.id})" class="text-slate-400 hover:text-red-500 p-1 text-sm">&times;</button>
           </div>
         `;
       }).join('');
-      lucide.createIcons();
     }
 
-    // --- 3단계: 백업 & 설정 ---
-    function changeFontScale(val) {
-      document.documentElement.style.setProperty('--app-font-scale', `${val}%`);
-      localStorage.setItem('bp_font_scale', val);
-    }
-
-    function checkBackupReminder(manual = false) {
-      const lastBackup = localStorage.getItem('bp_last_backup_date');
-      const now = new Date();
-      let needBackup = false;
-
-      if (!lastBackup) {
-        if (records.length > 0) needBackup = true;
-      } else {
-        const diffDays = (now - new Date(lastBackup)) / (1000 * 60 * 60 * 24);
-        if (diffDays >= 30) needBackup = true;
-      }
-
-      if (needBackup || manual) {
-        if (confirm(`백업 점검 안내\n1달 이상 데이터가 모였거나 백업점검이 필요합니다.\n지금 데이터를 백업하시겠습니까?`)) {
-          switchTab('settings');
-        }
-      }
-    }
-
-    function formatBackupText() {
-      return records.map(r => `${r.date} ${r.time} 수축기:${r.sys} 이완기:${r.dia} 맥박:${r.pulse}`).join('\n');
-    }
-
-    function backupViaEmail() {
-      const body = encodeURIComponent("혈압 관리 앱 데이터 백업입니다.\n\n" + formatBackupText());
-      window.location.href = `mailto:?subject=혈압데이터 백업&body=${body}`;
-      localStorage.setItem('bp_last_backup_date', new Date().toISOString());
-    }
-
-    function backupViaNotes() {
-      const text = formatBackupText();
-      if (navigator.share) {
-        navigator.share({ title: '혈압 데이터 백업', text: text });
-      } else {
-        navigator.clipboard.writeText(text);
-        alert('혈압 데이터가 클립보드에 복사되었습니다. 메모장 앱에 붙여넣어 주세요.');
-      }
-      localStorage.setItem('bp_last_backup_date', new Date().toISOString());
-    }
+    document.addEventListener('DOMContentLoaded', renderRecords);
   </script>
 </body>
 </html>
