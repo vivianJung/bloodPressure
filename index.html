@@ -1,1146 +1,570 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BP Tracker</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        :root {
-            --base-font-size: 16px;
-            --primary: #4F46E5;
-            --primary-light: #E0E7FF;
-            --danger: #EF4444;
-            --success: #10B981;
-            --bg-color: #F3F4F6;
-            --card-bg: #FFFFFF;
-            --text-main: #1F2937;
-            --text-muted: #6B7280;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>혈압 관리 매니저</title>
+  
+  <!-- iOS PWA 웹앱 설정 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="혈압노트">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-size: var(--base-font-size);
-            -webkit-tap-highlight-color: transparent;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Tesseract.js (카메라 OCR) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-        /* Hide scrollbar for clean mobile look */
-        ::-webkit-scrollbar {
-            width: 0px;
-            background: transparent;
-        }
-
-        .app-container {
-            flex: 1;
-            overflow-y: auto;
-            padding-bottom: 80px; /* Space for bottom nav */
-            position: relative;
-        }
-
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--card-bg);
-            border-top: 1px solid #E5E7EB;
-            display: flex;
-            justify-content: space-around;
-            padding: 0.5rem 0;
-            padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
-            z-index: 40;
-            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.75rem;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            transition: all 0.2s ease;
-            width: 60px;
-            cursor: pointer;
-        }
-
-        .nav-item i {
-            font-size: 1.25rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .nav-item.active {
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        /* Modal Overlays */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease;
-        }
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .modal-card {
-            background: var(--card-bg);
-            border-radius: 1rem;
-            width: 90%;
-            max-width: 400px;
-            padding: 1.5rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            transform: scale(0.95);
-            transition: transform 0.2s ease;
-        }
-        .modal-overlay.active .modal-card {
-            transform: scale(1);
-        }
-
-        /* Calendar specific styles */
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 4px;
-            text-align: center;
-        }
-        .calendar-day {
-            aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            font-size: 0.875rem;
-            cursor: pointer;
-            position: relative;
-        }
-        .calendar-day.has-record::after {
-            content: '';
-            position: absolute;
-            bottom: 4px;
-            width: 6px;
-            height: 6px;
-            background-color: var(--primary);
-            border-radius: 50%;
-        }
-        .calendar-day.selected {
-            background-color: var(--primary-light);
-            color: var(--primary);
-            font-weight: bold;
-        }
-
-        /* Loader */
-        .loader-spinner {
-            border: 3px solid rgba(0,0,0,0.1);
-            border-left-color: var(--primary);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-    </style>
+  <style>
+    :root {
+      --app-font-scale: 100%;
+    }
+    html {
+      font-size: var(--app-font-scale);
+    }
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+  </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 pb-24 font-sans min-h-screen">
 
-    <header class="bg-white px-4 py-4 shadow-sm z-10 relative">
-        <h1 class="text-xl font-bold text-center text-gray-800">BP Tracker</h1>
-    </header>
+  <!-- 상단 헤더 -->
+  <header class="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 z-30 px-4 py-3 flex justify-between items-center">
+    <h1 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+      <i data-lucide="heart-pulse" class="text-rose-500"></i> 혈압 노트
+    </h1>
+    <button onclick="checkBackupReminder(true)" class="p-2 text-slate-500 hover:text-slate-800">
+      <i data-lucide="bell"></i>
+    </button>
+  </header>
 
-    <!-- Custom Alert Modal -->
-    <div id="alertModal" class="modal-overlay">
-        <div class="modal-card">
-            <h3 class="text-lg font-bold mb-2 text-gray-800" id="alertTitle">Alert</h3>
-            <p class="text-gray-600 mb-6" id="alertMessage">Message</p>
-            <div class="flex justify-end">
-                <button onclick="closeAlert()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium w-full">OK</button>
+  <!-- 메인 컨텐츠 영역 -->
+  <main class="max-w-md mx-auto p-4 space-y-6">
+
+    <!-- TAB 1: 데이터 입력 -->
+    <section id="tab-input" class="tab-content">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+        <h2 class="text-base font-bold text-slate-700 flex items-center gap-1.5">
+          <i data-lucide="plus-circle" class="w-5 h-5 text-blue-500"></i> 혈압 데이터 입력
+        </h2>
+
+        <!-- 카메라 OCR 버튼 -->
+        <div class="bg-blue-50/70 border border-blue-100 rounded-xl p-4 text-center space-y-2">
+          <p class="text-xs text-blue-600 font-medium">혈압계 화면 촬영으로 자동 입력</p>
+          <label class="inline-flex items-center justify-center gap-2 w-full py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-md active:scale-95 transition cursor-pointer">
+            <i data-lucide="camera"></i> 카메라 / 사진 선택
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="processImageOCR(this)">
+          </label>
+          <div id="ocrSpinner" class="hidden text-xs text-blue-600 font-medium flex items-center justify-center gap-2 pt-1">
+            <i data-lucide="loader-2" class="animate-spin w-4 h-4"></i> 이미지를 분석 중입니다...
+          </div>
+        </div>
+
+        <!-- 수동 입력 폼 -->
+        <form id="bpForm" onsubmit="saveRecord(event)" class="space-y-3 pt-2">
+          <input type="hidden" id="editId" value="">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-500 font-medium">날짜</label>
+              <input type="date" id="inputDate" required class="w-full mt-1 p-2.5 bg-slate-100 rounded-xl border-none text-sm font-semibold text-slate-700">
             </div>
-        </div>
-    </div>
-
-    <!-- Custom Confirm Modal -->
-    <div id="confirmModal" class="modal-overlay">
-        <div class="modal-card">
-            <h3 class="text-lg font-bold mb-2 text-gray-800" id="confirmTitle">Confirm</h3>
-            <p class="text-gray-600 mb-6" id="confirmMessage">Are you sure?</p>
-            <div class="flex space-x-3">
-                <button onclick="closeConfirm(false)" class="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium">Cancel</button>
-                <button onclick="closeConfirm(true)" class="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg font-medium" id="confirmActionBtn">Confirm</button>
+            <div>
+              <label class="text-xs text-slate-500 font-medium">시간</label>
+              <input type="time" id="inputTime" required class="w-full mt-1 p-2.5 bg-slate-100 rounded-xl border-none text-sm font-semibold text-slate-700">
             </div>
-        </div>
-    </div>
-    
-    <!-- Full Screen Loader for OCR/Syncing -->
-    <div id="globalLoader" class="modal-overlay" style="z-index: 1000;">
-        <div class="bg-white p-6 rounded-2xl flex flex-col items-center shadow-2xl">
-            <div class="loader-spinner mb-3 h-10 w-10 border-4 text-indigo-600"></div>
-            <p class="text-gray-700 font-medium" id="loaderText">Processing...</p>
-        </div>
-    </div>
+          </div>
 
-    <div class="app-container" id="appContainer">
+          <div class="grid grid-cols-3 gap-2 pt-1">
+            <div>
+              <label class="text-xs text-blue-600 font-bold">수축기 (SYS)</label>
+              <input type="number" id="inputSys" placeholder="120" required class="w-full mt-1 p-3 bg-blue-50 text-blue-900 font-bold text-lg rounded-xl border border-blue-200 text-center">
+            </div>
+            <div>
+              <label class="text-xs text-rose-600 font-bold">이완기 (DIA)</label>
+              <input type="number" id="inputDia" placeholder="80" required class="w-full mt-1 p-3 bg-rose-50 text-rose-900 font-bold text-lg rounded-xl border border-rose-200 text-center">
+            </div>
+            <div>
+              <label class="text-xs text-amber-600 font-bold">맥박 (Pulse)</label>
+              <input type="number" id="inputPulse" placeholder="70" required class="w-full mt-1 p-3 bg-amber-50 text-amber-900 font-bold text-lg rounded-xl border border-amber-200 text-center">
+            </div>
+          </div>
+
+          <div class="pt-1">
+            <label class="text-xs text-slate-500 font-medium">측정 시점 구분</label>
+            <div class="grid grid-cols-3 gap-2 mt-1">
+              <button type="button" onclick="setTag('아침')" class="tag-btn p-2 text-xs border rounded-lg font-semibold border-slate-200 text-slate-600" data-tag="아침">☀️ 아침</button>
+              <button type="button" onclick="setTag('저녁')" class="tag-btn p-2 text-xs border rounded-lg font-semibold border-slate-200 text-slate-600" data-tag="저녁">🌙 저녁</button>
+              <button type="button" onclick="setTag('기타')" class="tag-btn p-2 text-xs border rounded-lg font-semibold border-slate-200 text-slate-600" data-tag="기타">✏️ 기타</button>
+            </div>
+          </div>
+
+          <button type="submit" id="submitBtn" class="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-md hover:bg-slate-800 transition active:scale-95 pt-3">
+            기록 저장하기
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 2: 차트 보기 -->
+    <section id="tab-chart" class="tab-content hidden space-y-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-slate-700">혈압 추이 차트</h2>
+          <div class="flex gap-1 text-xs">
+            <button onclick="setChartPeriod(7)" class="period-btn px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 font-bold" data-period="7">1주</button>
+            <button onclick="setChartPeriod(30)" class="period-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-600" data-period="30">1달</button>
+            <button onclick="setChartPeriod(60)" class="period-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-600" data-period="60">2달</button>
+            <button onclick="setChartPeriod(90)" class="period-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-600" data-period="90">3달</button>
+          </div>
+        </div>
+        <div class="relative h-64 w-full">
+          <canvas id="bpChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 달력 보기 -->
+    <section id="tab-calendar" class="tab-content hidden space-y-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+        <div class="flex justify-between items-center mb-4">
+          <button onclick="changeMonth(-1)" class="p-1"><i data-lucide="chevron-left"></i></button>
+          <h2 id="calendarTitle" class="text-base font-bold text-slate-800">2026년 10월</h2>
+          <button onclick="changeMonth(1)" class="p-1"><i data-lucide="chevron-right"></i></button>
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 mb-2">
+          <div class="text-rose-500">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+        </div>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-1 text-center text-sm"></div>
+      </div>
+      <div id="calendarDetail" class="space-y-2"></div>
+    </section>
+
+    <!-- TAB 4: 리스트 보기 -->
+    <section id="tab-list" class="tab-content hidden space-y-3">
+      <div class="flex justify-between items-center px-1">
+        <h2 class="text-sm font-bold text-slate-700">전체 기록 목록</h2>
+        <span id="recordCount" class="text-xs text-slate-500 font-medium">총 0건</span>
+      </div>
+      <div id="recordList" class="space-y-2.5"></div>
+    </section>
+
+    <!-- TAB 5: 백업 및 설정 -->
+    <section id="tab-settings" class="tab-content hidden space-y-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-4">
+        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+          <i data-lucide="settings"></i> 앱 설정 & 백업
+        </h2>
+
+        <!-- 글자 크기 조정 -->
+        <div class="space-y-2 border-b border-slate-100 pb-4">
+          <label class="text-xs font-semibold text-slate-600">화면 글자 크기 조정</label>
+          <div class="flex items-center gap-3">
+            <span class="text-xs">작게</span>
+            <input type="range" id="fontScaleRange" min="90" max="115" step="5" value="100" oninput="changeFontScale(this.value)" class="w-full accent-blue-600">
+            <span class="text-sm font-bold">크게</span>
+          </div>
+        </div>
+
+        <!-- 데이터 백업/전송 -->
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-slate-600">데이터 백업 내보내기</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="backupViaEmail()" class="flex items-center justify-center gap-2 p-3 bg-slate-100 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-200">
+              <i data-lucide="mail" class="w-4 h-4"></i> 이메일 전송
+            </button>
+            <button onclick="backupViaNotes()" class="flex items-center justify-center gap-2 p-3 bg-amber-50 text-amber-800 rounded-xl text-xs font-bold hover:bg-amber-100">
+              <i data-lucide="file-text" class="w-4 h-4"></i> 메모장 복사
+            </button>
+          </div>
+        </div>
+
+        <!-- 백업 알림 확인 -->
+        <div class="pt-2">
+          <button onclick="checkBackupReminder(true)" class="w-full p-2.5 border border-slate-200 text-slate-600 text-xs rounded-xl font-medium">
+            백업 상태 확인하기
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 하단 탭 바 -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40">
+    <div class="max-w-md mx-auto grid grid-cols-5 text-center py-2 text-slate-400">
+      <button onclick="switchTab('input')" id="nav-input" class="nav-btn text-blue-600 flex flex-col items-center gap-0.5">
+        <i data-lucide="plus-circle" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium">입력</span>
+      </button>
+      <button onclick="switchTab('chart')" id="nav-chart" class="nav-btn flex flex-col items-center gap-0.5">
+        <i data-lucide="line-chart" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium">차트</span>
+      </button>
+      <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-btn flex flex-col items-center gap-0.5">
+        <i data-lucide="calendar" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium">달력</span>
+      </button>
+      <button onclick="switchTab('list')" id="nav-list" class="nav-btn flex flex-col items-center gap-0.5">
+        <i data-lucide="list" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium">목록</span>
+      </button>
+      <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn flex flex-col items-center gap-0.5">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium">설정</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- JS 로직 -->
+  <script>
+    // State
+    let records = JSON.parse(localStorage.getItem('bp_records') || '[]');
+    let currentTag = '아침';
+    let chartInstance = null;
+    let chartPeriod = 7;
+    let currentDate = new Date();
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      resetFormDateTime();
+      setTag('아침');
+      renderList();
+      checkBackupReminder(false);
+      
+      const savedScale = localStorage.getItem('bp_font_scale');
+      if (savedScale) {
+        changeFontScale(savedScale);
+        document.getElementById('fontScaleRange').value = savedScale;
+      }
+    });
+
+    function resetFormDateTime() {
+      const now = new Date();
+      document.getElementById('inputDate').value = now.toISOString().split('T')[0];
+      document.getElementById('inputTime').value = now.toTimeString().slice(0, 5);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('text-blue-600'));
+      
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      document.getElementById(`nav-${tabId}`).classList.add('text-blue-600');
+
+      if (tabId === 'chart') renderChart();
+      if (tabId === 'calendar') renderCalendar();
+      if (tabId === 'list') renderList();
+    }
+
+    function setTag(tag) {
+      currentTag = tag;
+      document.querySelectorAll('.tag-btn').forEach(btn => {
+        if (btn.dataset.tag === tag) {
+          btn.className = 'tag-btn p-2 text-xs border rounded-lg font-semibold bg-blue-600 text-white border-blue-600';
+        } else {
+          btn.className = 'tag-btn p-2 text-xs border rounded-lg font-semibold border-slate-200 text-slate-600';
+        }
+      });
+    }
+
+    // --- 1단계: 카메라 OCR 인식 ---
+    async function processImageOCR(input) {
+      if (!input.files || !input.files[0]) return;
+      const file = input.files[0];
+      const spinner = document.getElementById('ocrSpinner');
+      spinner.classList.remove('hidden');
+
+      try {
+        const worker = await Tesseract.createWorker('eng');
+        await worker.setParameters({ tessedit_char_whitelist: '0123456789\n ' });
+        const { data: { text } } = await worker.recognize(file);
+        await worker.terminate();
+
+        const numbers = text.match(/\b\d{2,3}\b/g)?.map(Number) || [];
         
-        <!-- INPUT TAB -->
-        <div id="tab-input" class="tab-content active p-4">
-            <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
-                <h2 class="text-lg font-semibold mb-4 text-gray-800 flex items-center justify-between">
-                    <span>New Reading</span>
-                    <label for="cameraInput" class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full text-sm font-medium flex items-center cursor-pointer active:bg-indigo-200">
-                        <i class="fas fa-camera mr-2"></i> Scan Monitor
-                    </label>
-                    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-                </h2>
-                
-                <form id="bpForm" class="space-y-4">
-                    <input type="hidden" id="editRecordId">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Date & Time</label>
-                        <input type="datetime-local" id="inputDatetime" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
-                    </div>
-                    <div class="flex space-x-4">
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-600 mb-1">Systolic (SYS)</label>
-                            <input type="number" id="inputSys" placeholder="120" min="50" max="250" class="w-full border border-gray-300 rounded-lg p-3 text-lg font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center" required>
-                        </div>
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-600 mb-1">Diastolic (DIA)</label>
-                            <input type="number" id="inputDia" placeholder="80" min="30" max="200" class="w-full border border-gray-300 rounded-lg p-3 text-lg font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center" required>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Pulse / bpm</label>
-                        <input type="number" id="inputPul" placeholder="70" min="30" max="200" class="w-full border border-gray-300 rounded-lg p-3 text-lg font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center" required>
-                    </div>
-                    
-                    <button type="submit" class="w-full bg-indigo-600 text-white font-semibold rounded-lg p-3.5 mt-2 active:bg-indigo-700 shadow-md transition-colors flex items-center justify-center">
-                        <i class="fas fa-save mr-2"></i> Save Record
-                    </button>
-                    <button type="button" id="cancelEditBtn" class="w-full bg-gray-200 text-gray-700 font-semibold rounded-lg p-3.5 mt-2 hidden active:bg-gray-300 transition-colors">
-                        Cancel Edit
-                    </button>
-                </form>
-            </div>
-            
-            <div class="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-start text-orange-800 text-sm">
-                <i class="fas fa-info-circle mt-0.5 mr-3 text-orange-500"></i>
-                <p>Use the <b>Scan Monitor</b> button to quickly read numbers from your blood pressure device display using AI.</p>
-            </div>
-        </div>
+        // OMRON 혈압계 기준 3개 숫자 순서 (SYS > DIA > PULSE)
+        if (numbers.length >= 3) {
+          document.getElementById('inputSys').value = numbers[0];
+          document.getElementById('inputDia').value = numbers[1];
+          document.getElementById('inputPulse').value = numbers[2];
+          alert(`숫자를 자동 인식했습니다!\n수축기: ${numbers[0]}, 이완기: ${numbers[1]}, 맥박: ${numbers[2]}`);
+        } else {
+          alert("숫자 인식에 실패했습니다. 사진이 명확하도록 다시 카메라로 찍어주세요.");
+        }
+      } catch (err) {
+        alert("인식 처리 중 오류가 발생했습니다. 다시 촬영하거나 직접 입력해 주세요.");
+      } finally {
+        spinner.classList.add('hidden');
+        input.value = '';
+      }
+    }
 
-        <!-- CHART TAB -->
-        <div id="tab-chart" class="tab-content p-4">
-            <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800">Trends</h2>
-                    <div class="flex bg-gray-100 rounded-lg p-1 text-xs font-medium" id="chartFilter">
-                        <button class="px-3 py-1 rounded-md bg-white shadow-sm text-indigo-600" data-range="7">1W</button>
-                        <button class="px-3 py-1 rounded-md text-gray-600" data-range="30">1M</button>
-                        <button class="px-3 py-1 rounded-md text-gray-600" data-range="60">2M</button>
-                        <button class="px-3 py-1 rounded-md text-gray-600" data-range="90">3M</button>
-                    </div>
-                </div>
-                <div class="relative w-full h-64">
-                    <canvas id="bpChart"></canvas>
-                </div>
-                <div class="flex justify-center items-center space-x-4 mt-4 text-xs text-gray-600">
-                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-blue-500 mr-1"></span> SYS</span>
-                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-1"></span> DIA</span>
-                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-400 mr-1"></span> PUL</span>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-white rounded-xl shadow-sm p-4 text-center">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Avg SYS</p>
-                    <p class="text-2xl font-bold text-blue-600 mt-1" id="statAvgSys">--</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-4 text-center">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Avg DIA</p>
-                    <p class="text-2xl font-bold text-red-500 mt-1" id="statAvgDia">--</p>
-                </div>
-            </div>
-        </div>
+    // --- 데이터 저장 & 수정 & 삭제 ---
+    function saveRecord(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editId').value;
+      const date = document.getElementById('inputDate').value;
+      const time = document.getElementById('inputTime').value;
+      const sys = parseInt(document.getElementById('inputSys').value);
+      const dia = parseInt(document.getElementById('inputDia').value);
+      const pulse = parseInt(document.getElementById('inputPulse').value);
 
-        <!-- CALENDAR TAB -->
-        <div id="tab-calendar" class="tab-content p-4">
-            <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
-                <div class="flex justify-between items-center mb-4">
-                    <button id="calPrevBtn" class="p-2 text-gray-500 hover:text-indigo-600"><i class="fas fa-chevron-left"></i></button>
-                    <h2 class="text-lg font-bold text-gray-800" id="calMonthYear">Month Year</h2>
-                    <button id="calNextBtn" class="p-2 text-gray-500 hover:text-indigo-600"><i class="fas fa-chevron-right"></i></button>
-                </div>
-                <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500 mb-2">
-                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-                </div>
-                <div id="calendarGrid" class="calendar-grid">
-                    <!-- Calendar days injected via JS -->
-                </div>
-            </div>
-            
-            <div id="calendarDayDetails" class="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div class="bg-indigo-50 p-3 border-b border-indigo-100 font-semibold text-indigo-800" id="calDetailDate">Select a day</div>
-                <div class="p-0 divide-y divide-gray-100" id="calDetailList">
-                    <p class="text-center text-gray-500 py-6 text-sm">No records for this day.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- LIST TAB -->
-        <div id="tab-list" class="tab-content p-4">
-            <div class="flex justify-between items-center mb-4 px-1">
-                <h2 class="text-lg font-bold text-gray-800">History</h2>
-                <span class="text-xs font-medium text-gray-500 bg-gray-200 px-2 py-1 rounded-full" id="totalRecordsBadge">0 records</span>
-            </div>
-            <div id="recordsList" class="space-y-3">
-                <!-- Records injected here -->
-            </div>
-        </div>
-
-        <!-- SETTINGS TAB -->
-        <div id="tab-settings" class="tab-content p-4">
-            <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-                <div class="p-4 border-b border-gray-100">
-                    <h3 class="font-bold text-gray-800 mb-1">Display Size</h3>
-                    <p class="text-sm text-gray-500 mb-4">Adjust the overall text size of the app.</p>
-                    <div class="flex items-center space-x-4">
-                        <span class="text-sm">A</span>
-                        <input type="range" id="fontSizeSlider" min="14" max="22" step="2" value="16" class="flex-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-                        <span class="text-xl">A</span>
-                    </div>
-                </div>
-                <div class="p-4 bg-gray-50 flex items-center justify-between">
-                    <div>
-                        <p class="font-medium text-gray-700">Account ID</p>
-                        <p class="text-xs text-gray-500 mt-1 truncate w-48" id="userIdDisplay">Loading...</p>
-                    </div>
-                    <i class="fas fa-shield-alt text-gray-300 text-2xl"></i>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div class="p-4">
-                    <h3 class="font-bold text-gray-800 mb-1">Data Backup</h3>
-                    <p class="text-sm text-gray-500 mb-4">Export your records to Notes, Email, or Files.</p>
-                    <button onclick="exportData()" class="w-full bg-white border-2 border-indigo-600 text-indigo-700 font-semibold rounded-lg p-3 flex items-center justify-center active:bg-indigo-50">
-                        <i class="fas fa-share-square mr-2"></i> Share & Export Data
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- BOTTOM NAV -->
-    <nav class="bottom-nav">
-        <div class="nav-item active" data-target="tab-input">
-            <i class="fas fa-plus-circle"></i>
-            <span>Add</span>
-        </div>
-        <div class="nav-item" data-target="tab-chart">
-            <i class="fas fa-chart-line"></i>
-            <span>Chart</span>
-        </div>
-        <div class="nav-item" data-target="tab-calendar">
-            <i class="fas fa-calendar-alt"></i>
-            <span>Calendar</span>
-        </div>
-        <div class="nav-item" data-target="tab-list">
-            <i class="fas fa-list"></i>
-            <span>List</span>
-        </div>
-        <div class="nav-item" data-target="tab-settings">
-            <i class="fas fa-cog"></i>
-            <span>Settings</span>
-        </div>
-    </nav>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase & Global Setup
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'bp-tracker-default';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            // Mock config to prevent crashes if run locally without environment vars
-            apiKey: "mock-key", projectId: "mock-project"
+      if (editId) {
+        if (!confirm("정말 수정하시겠습니까?")) return;
+        const idx = records.findIndex(r => r.id === editId);
+        if (idx !== -1) {
+          records[idx] = { id: editId, date, time, sys, dia, pulse, tag: currentTag };
+        }
+        document.getElementById('editId').value = '';
+        document.getElementById('submitBtn').innerText = '기록 저장하기';
+      } else {
+        const newRecord = {
+          id: Date.now().toString(),
+          date, time, sys, dia, pulse, tag: currentTag
         };
+        records.push(newRecord);
+      }
+
+      records.sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`));
+      localStorage.setItem('bp_records', JSON.stringify(records));
+      
+      alert('성공적으로 저장되었습니다.');
+      document.getElementById('bpForm').reset();
+      resetFormDateTime();
+      setTag('아침');
+      renderList();
+    }
+
+    function editRecord(id) {
+      const target = records.find(r => r.id === id);
+      if (!target) return;
+      
+      document.getElementById('editId').value = target.id;
+      document.getElementById('inputDate').value = target.date;
+      document.getElementById('inputTime').value = target.time;
+      document.getElementById('inputSys').value = target.sys;
+      document.getElementById('inputDia').value = target.dia;
+      document.getElementById('inputPulse').value = target.pulse;
+      setTag(target.tag || '기타');
+      document.getElementById('submitBtn').innerText = '수정 완료하기';
+      switchTab('input');
+    }
+
+    function deleteRecord(id) {
+      if (confirm("정말 삭제하시겠습니까?")) {
+        records = records.filter(r => r.id !== id);
+        localStorage.setItem('bp_records', JSON.stringify(records));
+        renderList();
+        if (!document.getElementById('tab-chart').classList.contains('hidden')) renderChart();
+      }
+    }
+
+    function getBPStatus(sys, dia) {
+      if (sys >= 140 || dia >= 90) return { text: '고혈압', color: 'text-rose-600 bg-rose-50' };
+      if (sys >= 120 || dia >= 80) return { text: '주의', color: 'text-amber-600 bg-amber-50' };
+      if (sys < 90 || dia < 60) return { text: '저혈압', color: 'text-blue-600 bg-blue-50' };
+      return { text: '정상', color: 'text-emerald-600 bg-emerald-50' };
+    }
+
+    // --- 2단계: 추이 분석 차트 ---
+    function setChartPeriod(days) {
+      chartPeriod = days;
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        if (parseInt(btn.dataset.period) === days) {
+          btn.className = 'period-btn px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 font-bold';
+        } else {
+          btn.className = 'period-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-600';
+        }
+      });
+      renderChart();
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById('bpChart').getContext('2d');
+      const now = new Date();
+      const limitDate = new Date();
+      limitDate.setDate(now.getDate() - chartPeriod);
+
+      const filtered = records
+        .filter(r => new Date(r.date) >= limitDate)
+        .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+
+      const labels = filtered.map(r => r.date.slice(5) + ' ' + r.time);
+      const sysData = filtered.map(r => r.sys);
+      const diaData = filtered.map(r => r.dia);
+      const pulseData = filtered.map(r => r.pulse);
+
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '수축기(SYS)', data: sysData, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3 },
+            { label: '이완기(DIA)', data: diaData, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.3 },
+            { label: '맥박(Pulse)', data: pulseData, borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: { y: { min: 40, max: 180 } }
+        }
+      });
+    }
+
+    // --- 달력 보기 ---
+    function changeMonth(delta) {
+      currentDate.setMonth(currentDate.getMonth() + delta);
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      document.getElementById('calendarTitle').innerText = `${year}년 ${month + 1}월`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < firstDay; i++) {
+        grid.innerHTML += `<div></div>`;
+      }
+
+      for (let day = 1; day <= lastDate; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayRecords = records.filter(r => r.date === dateStr);
+        let dotHTML = '';
         
-        let app, db, auth;
-        let userId = null;
-        let bpRecords = []; 
-        let bpChartInstance = null;
-        
-        // Ensure UI functions are available globally for HTML event handlers
-        window.closeAlert = closeAlert;
-        window.closeConfirm = closeConfirm;
-        window.exportData = exportData;
-        window.editRecord = editRecord;
-        window.promptDeleteRecord = promptDeleteRecord;
-
-        try {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-        } catch (e) {
-            console.error("Firebase init failed:", e);
+        if (dayRecords.length > 0) {
+          const hasHigh = dayRecords.some(r => r.sys >= 140 || r.dia >= 90);
+          dotHTML = `<span class="inline-block w-1.5 h-1.5 rounded-full ${hasHigh ? 'bg-rose-500' : 'bg-emerald-500'} mt-0.5"></span>`;
         }
 
-        
-        // Navigation Logic
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => {
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                item.classList.add('active');
-                
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                const targetId = item.getAttribute('data-target');
-                document.getElementById(targetId).classList.add('active');
-                
-                // Trigger specific renders based on tab
-                if(targetId === 'tab-chart') renderChart();
-                if(targetId === 'tab-calendar') renderCalendar();
-                if(targetId === 'tab-list') renderList();
-            });
-        });
+        grid.innerHTML += `
+          <button onclick="showCalendarDetail('${dateStr}')" class="p-2 hover:bg-slate-100 rounded-xl flex flex-col items-center">
+            <span>${day}</span>
+            ${dotHTML}
+          </button>
+        `;
+      }
+    }
 
-        // Setup datetime-local input default to now
-        function setLocalNow(elId) {
-            const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            document.getElementById(elId).value = now.toISOString().slice(0,16);
+    function showCalendarDetail(dateStr) {
+      const dayRecords = records.filter(r => r.date === dateStr);
+      const detailContainer = document.getElementById('calendarDetail');
+      
+      if (dayRecords.length === 0) {
+        detailContainer.innerHTML = `<p class="text-xs text-slate-400 text-center py-2">${dateStr} 기록이 없습니다.</p>`;
+        return;
+      }
+
+      detailContainer.innerHTML = dayRecords.map(r => {
+        const st = getBPStatus(r.sys, r.dia);
+        return `
+          <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+            <div>
+              <span class="font-bold text-slate-700">${r.time} (${r.tag || '미지정'})</span>
+              <p class="text-slate-500 mt-0.5">${r.sys}/${r.dia} mmHg · ${r.pulse} bpm</p>
+            </div>
+            <span class="px-2 py-1 rounded-md font-bold ${st.color}">${st.text}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- 순서별 리스트 보기 ---
+    function renderList() {
+      const listContainer = document.getElementById('recordList');
+      document.getElementById('recordCount').innerText = `총 ${records.length}건`;
+
+      if (records.length === 0) {
+        listContainer.innerHTML = `<p class="text-center text-xs text-slate-400 py-8">등록된 혈압 기록이 없습니다.</p>`;
+        return;
+      }
+
+      listContainer.innerHTML = records.map(r => {
+        const status = getBPStatus(r.sys, r.dia);
+        return `
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400 font-medium">${r.date} ${r.time}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-100 text-slate-600">${r.tag || '미지정'}</span>
+              </div>
+              <div class="text-xl font-black text-slate-800">
+                ${r.sys}<span class="text-slate-400 font-normal text-sm">/</span>${r.dia}
+                <span class="text-xs font-normal text-slate-500 ml-1">mmHg</span>
+                <span class="text-xs font-normal text-slate-400 ml-2">❤️ ${r.pulse} bpm</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${status.color}">${status.text}</span>
+              <button onclick="editRecord('${r.id}')" class="p-1.5 text-slate-400 hover:text-blue-600"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+              <button onclick="deleteRecord('${r.id}')" class="p-1.5 text-slate-400 hover:text-rose-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    // --- 3단계: 백업 & 설정 ---
+    function changeFontScale(val) {
+      document.documentElement.style.setProperty('--app-font-scale', `${val}%`);
+      localStorage.setItem('bp_font_scale', val);
+    }
+
+    function checkBackupReminder(manual = false) {
+      const lastBackup = localStorage.getItem('bp_last_backup_date');
+      const now = new Date();
+      let needBackup = false;
+
+      if (!lastBackup) {
+        if (records.length > 0) needBackup = true;
+      } else {
+        const diffDays = (now - new Date(lastBackup)) / (1000 * 60 * 60 * 24);
+        if (diffDays >= 30) needBackup = true;
+      }
+
+      if (needBackup || manual) {
+        if (confirm(`백업할 시간입니다! 1달 이상 데이터가 모였거나 백업점검이 필요합니다.\n지금 데이터를 백업하시겠습니까?`)) {
+          switchTab('settings');
         }
-        setLocalNow('inputDatetime');
+      }
+    }
 
-        // Font Size Settings logic
-        const fontSizeSlider = document.getElementById('fontSizeSlider');
-        fontSizeSlider.addEventListener('input', (e) => {
-            const size = e.target.value;
-            document.documentElement.style.setProperty('--base-font-size', `${size}px`);
-            localStorage.setItem('bp-app-font-size', size);
-            // Refresh chart to match font size approx
-            if(bpChartInstance) renderChart();
-        });
-        
-        // Load saved font size
-        const savedSize = localStorage.getItem('bp-app-font-size');
-        if (savedSize) {
-            fontSizeSlider.value = savedSize;
-            document.documentElement.style.setProperty('--base-font-size', `${savedSize}px`);
-        }
+    function formatBackupText() {
+      return records.map(r => `${r.date} ${r.time} [${r.tag || '기타'}] 수축기:${r.sys} 이완기:${r.dia} 맥박:${r.pulse}`).join('\n');
+    }
 
-        let confirmCallback = null;
+    function backupViaEmail() {
+      const body = encodeURIComponent("혈압 관리 앱 데이터 백업입니다.\n\n" + formatBackupText());
+      window.location.href = `mailto:?subject=혈압데이터 백업&body=${body}`;
+      localStorage.setItem('bp_last_backup_date', new Date().toISOString());
+    }
 
-        function showAlert(title, message) {
-            document.getElementById('alertTitle').innerText = title;
-            document.getElementById('alertMessage').innerText = message;
-            document.getElementById('alertModal').classList.add('active');
-        }
-
-        function closeAlert() {
-            document.getElementById('alertModal').classList.remove('active');
-        }
-
-        function showConfirm(title, message, actionText, callback) {
-            document.getElementById('confirmTitle').innerText = title;
-            document.getElementById('confirmMessage').innerText = message;
-            document.getElementById('confirmActionBtn').innerText = actionText;
-            confirmCallback = callback;
-            document.getElementById('confirmModal').classList.add('active');
-        }
-
-        function closeConfirm(isConfirmed) {
-            document.getElementById('confirmModal').classList.remove('active');
-            if (isConfirmed && typeof confirmCallback === 'function') {
-                confirmCallback();
-            }
-            confirmCallback = null;
-        }
-
-        function showLoader(text) {
-            document.getElementById('loaderText').innerText = text;
-            document.getElementById('globalLoader').classList.add('active');
-        }
-        
-        function hideLoader() {
-            document.getElementById('globalLoader').classList.remove('active');
-        }
-
-        async function initAuth() {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                
-                userId = auth.currentUser?.uid;
-                if (!userId) throw new Error("No user ID available");
-                
-                document.getElementById('userIdDisplay').innerText = userId;
-                setupFirestoreSync();
-            } catch (err) {
-                console.error("Auth error:", err);
-                showAlert("Authentication Error", "Could not sign in. App will run in offline mode (data not saved).");
-            }
-        }
-
-        function setupFirestoreSync() {
-            if (!userId) return;
-            const recordsRef = collection(db, 'artifacts', appId, 'users', userId, 'bp_records');
-            const q = query(recordsRef);
-            
-            showLoader("Loading data...");
-            onSnapshot(q, (snapshot) => {
-                bpRecords = [];
-                snapshot.forEach((doc) => {
-                    bpRecords.push({ id: doc.id, ...doc.data() });
-                });
-                
-                // Sort by timestamp descending
-                bpRecords.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                
-                hideLoader();
-                updateUI();
-                checkBackupReminder();
-            }, (error) => {
-                console.error("Firestore Error:", error);
-                hideLoader();
-                showAlert("Sync Error", "Failed to sync data with cloud.");
-            });
-        }
-
-        function updateUI() {
-            document.getElementById('totalRecordsBadge').innerText = `${bpRecords.length} records`;
-            // Only update current active tab to save CPU
-            const activeNav = document.querySelector('.nav-item.active').getAttribute('data-target');
-            if (activeNav === 'tab-chart') renderChart();
-            if (activeNav === 'tab-calendar') renderCalendar();
-            if (activeNav === 'tab-list') renderList();
-        }
-
-        const form = document.getElementById('bpForm');
-        const cancelEditBtn = document.getElementById('cancelEditBtn');
-        const editRecordIdInput = document.getElementById('editRecordId');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if(!userId) return showAlert("Error", "Not logged in. Cannot save data.");
-
-            const sys = parseInt(document.getElementById('inputSys').value);
-            const dia = parseInt(document.getElementById('inputDia').value);
-            const pul = parseInt(document.getElementById('inputPul').value);
-            const timestamp = new Date(document.getElementById('inputDatetime').value).toISOString();
-            const editId = editRecordIdInput.value;
-
-            showLoader("Saving...");
-            try {
-                const data = { sys, dia, pul, timestamp };
-                
-                if (editId) {
-                    const docRef = doc(db, 'artifacts', appId, 'users', userId, 'bp_records', editId);
-                    await updateDoc(docRef, data);
-                    showAlert("Success", "Record updated successfully.");
-                } else {
-                    const colRef = collection(db, 'artifacts', appId, 'users', userId, 'bp_records');
-                    await addDoc(colRef, data);
-                    // Minimal subtle feedback instead of intrusive alert for new add
-                }
-                resetForm();
-                
-                // Jump to list view automatically
-                document.querySelector('.nav-item[data-target="tab-list"]').click();
-            } catch (err) {
-                console.error(err);
-                showAlert("Error", "Failed to save record.");
-            } finally {
-                hideLoader();
-            }
-        });
-
-        function resetForm() {
-            form.reset();
-            setLocalNow('inputDatetime');
-            editRecordIdInput.value = '';
-            cancelEditBtn.classList.add('hidden');
-        }
-
-        cancelEditBtn.addEventListener('click', resetForm);
-
-        function editRecord(id) {
-            const record = bpRecords.find(r => r.id === id);
-            if (!record) return;
-            
-            // Format datetime-local requires YYYY-MM-DDTHH:MM format
-            const dt = new Date(record.timestamp);
-            dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
-            
-            document.getElementById('inputDatetime').value = dt.toISOString().slice(0,16);
-            document.getElementById('inputSys').value = record.sys;
-            document.getElementById('inputDia').value = record.dia;
-            document.getElementById('inputPul').value = record.pul;
-            editRecordIdInput.value = record.id;
-            
-            cancelEditBtn.classList.remove('hidden');
-            
-            // Switch to input tab
-            document.querySelector('.nav-item[data-target="tab-input"]').click();
-            window.scrollTo(0,0);
-        }
-
-        function promptDeleteRecord(id) {
-            showConfirm(
-                "Delete Record", 
-                "Are you sure you want to completely remove this reading?", 
-                "Delete",
-                async () => {
-                    if (!userId) return;
-                    showLoader("Deleting...");
-                    try {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'bp_records', id));
-                    } catch (err) {
-                        console.error(err);
-                        showAlert("Error", "Could not delete record.");
-                    } finally {
-                        hideLoader();
-                    }
-                }
-            );
-        }
-
-        function renderList() {
-            const listEl = document.getElementById('recordsList');
-            if (bpRecords.length === 0) {
-                listEl.innerHTML = `<div class="text-center py-10 text-gray-500">
-                    <i class="fas fa-clipboard-list text-4xl mb-3 text-gray-300"></i>
-                    <p>No records found. Add your first reading!</p>
-                </div>`;
-                return;
-            }
-
-            // Group by date for better display
-            let currentDayStr = '';
-            let html = '';
-
-            bpRecords.forEach(rec => {
-                const dt = new Date(rec.timestamp);
-                const dayStr = dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-                const timeStr = dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-                
-                // Color coding based on simple thresholds
-                let statusColor = "text-green-600";
-                let statusBg = "bg-green-100";
-                if (rec.sys >= 140 || rec.dia >= 90) { statusColor = "text-red-600"; statusBg = "bg-red-100"; }
-                else if (rec.sys >= 130 || rec.dia >= 85) { statusColor = "text-orange-500"; statusBg = "bg-orange-100"; }
-                else if (rec.sys >= 120 || rec.dia >= 80) { statusColor = "text-yellow-600"; statusBg = "bg-yellow-100"; }
-
-                if (dayStr !== currentDayStr) {
-                    html += `<div class="text-sm font-bold text-gray-700 mt-4 mb-2 ml-1">${dayStr}</div>`;
-                    currentDayStr = dayStr;
-                }
-
-                html += `
-                <div class="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 text-center text-xs font-semibold text-gray-500">${timeStr}</div>
-                        <div>
-                            <div class="text-2xl font-bold text-gray-800 flex items-center">
-                                ${rec.sys} <span class="text-gray-400 mx-1 text-lg">/</span> ${rec.dia}
-                            </div>
-                            <div class="text-xs text-gray-500 flex items-center mt-1">
-                                <i class="fas fa-heartbeat mr-1 text-red-400"></i> ${rec.pul} bpm
-                                <span class="ml-2 px-2 py-0.5 rounded-full ${statusBg} ${statusColor} text-[10px] font-bold">●</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button onclick="editRecord('${rec.id}')" class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center active:bg-gray-200">
-                            <i class="fas fa-pencil-alt text-sm"></i>
-                        </button>
-                        <button onclick="promptDeleteRecord('${rec.id}')" class="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center active:bg-red-100">
-                            <i class="fas fa-trash-alt text-sm"></i>
-                        </button>
-                    </div>
-                </div>`;
-            });
-            
-            listEl.innerHTML = html;
-        }
-
-        let currentChartDays = 7; // Default 1 week
-        
-        document.querySelectorAll('#chartFilter button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('#chartFilter button').forEach(b => {
-                    b.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600');
-                    b.classList.add('text-gray-600');
-                });
-                const target = e.currentTarget;
-                target.classList.remove('text-gray-600');
-                target.classList.add('bg-white', 'shadow-sm', 'text-indigo-600');
-                currentChartDays = parseInt(target.getAttribute('data-range'));
-                renderChart();
-            });
-        });
-
-        function renderChart() {
-            if (!document.getElementById('tab-chart').classList.contains('active')) return;
-
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - currentChartDays);
-            
-            // Filter and reverse for chronological order on chart (left to right)
-            const filteredData = bpRecords
-                .filter(r => new Date(r.timestamp) >= cutoffDate)
-                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-            const labels = filteredData.map(r => {
-                const dt = new Date(r.timestamp);
-                return dt.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
-            });
-            const sysData = filteredData.map(r => r.sys);
-            const diaData = filteredData.map(r => r.dia);
-            const pulData = filteredData.map(r => r.pul);
-
-            // Update Stats
-            if(filteredData.length > 0) {
-                const avgS = Math.round(sysData.reduce((a,b)=>a+b,0)/sysData.length);
-                const avgD = Math.round(diaData.reduce((a,b)=>a+b,0)/diaData.length);
-                document.getElementById('statAvgSys').innerText = avgS;
-                document.getElementById('statAvgDia').innerText = avgD;
-            } else {
-                document.getElementById('statAvgSys').innerText = '--';
-                document.getElementById('statAvgDia').innerText = '--';
-            }
-
-            const ctx = document.getElementById('bpChart').getContext('2d');
-            
-            if (bpChartInstance) {
-                bpChartInstance.destroy();
-            }
-
-            const rootStyle = getComputedStyle(document.documentElement);
-            const fontFamily = rootStyle.getPropertyValue('font-family') || 'Inter, sans-serif';
-            // Chart.js requires numeric size
-            const fontSize = parseInt(rootStyle.getPropertyValue('--base-font-size')) * 0.75 || 12;
-
-            Chart.defaults.font.family = fontFamily;
-            Chart.defaults.font.size = fontSize;
-
-            bpChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'SYS',
-                            data: sysData,
-                            borderColor: '#3B82F6', // Blue
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            pointRadius: 3
-                        },
-                        {
-                            label: 'DIA',
-                            data: diaData,
-                            borderColor: '#EF4444', // Red
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            pointRadius: 3
-                        },
-                        {
-                            label: 'PUL',
-                            data: pulData,
-                            borderColor: '#FBBF24', // Yellow
-                            backgroundColor: 'transparent',
-                            borderDash: [5, 5],
-                            borderWidth: 2,
-                            tension: 0.3,
-                            pointRadius: 2,
-                            hidden: currentChartDays > 30 // hide by default on wide ranges
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(255,255,255,0.95)',
-                            titleColor: '#1f2937',
-                            bodyColor: '#4b5563',
-                            borderColor: '#e5e7eb',
-                            borderWidth: 1,
-                            padding: 10,
-                            boxPadding: 4
-                        }
-                    },
-                    scales: {
-                        y: {
-                            min: 40,
-                            max: 200,
-                            grid: { color: '#f3f4f6' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { maxTicksLimit: 7 }
-                        }
-                    }
-                }
-            });
-        }
-
-        let currentCalDate = new Date();
-        
-        document.getElementById('calPrevBtn').addEventListener('click', () => {
-            currentCalDate.setMonth(currentCalDate.getMonth() - 1);
-            renderCalendar();
-        });
-        
-        document.getElementById('calNextBtn').addEventListener('click', () => {
-            currentCalDate.setMonth(currentCalDate.getMonth() + 1);
-            renderCalendar();
-        });
-
-        function renderCalendar() {
-            if (!document.getElementById('tab-calendar').classList.contains('active')) return;
-
-            const year = currentCalDate.getFullYear();
-            const month = currentCalDate.getMonth();
-            
-            document.getElementById('calMonthYear').innerText = 
-                currentCalDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            // Map dates with records
-            const recordDates = new Set();
-            bpRecords.forEach(r => {
-                const dt = new Date(r.timestamp);
-                if (dt.getFullYear() === year && dt.getMonth() === month) {
-                    recordDates.add(dt.getDate());
-                }
-            });
-
-            const grid = document.getElementById('calendarGrid');
-            grid.innerHTML = '';
-            
-            // Padding empty days
-            for(let i=0; i<firstDay; i++) {
-                const div = document.createElement('div');
-                grid.appendChild(div);
-            }
-            
-            const today = new Date();
-            const isCurrentMonth = (today.getFullYear() === year && today.getMonth() === month);
-            
-            for(let d=1; d<=daysInMonth; d++) {
-                const div = document.createElement('div');
-                div.className = 'calendar-day';
-                div.innerText = d;
-                
-                if (isCurrentMonth && d === today.getDate()) {
-                    div.classList.add('bg-gray-100', 'font-bold'); // Highlight today slightly
-                }
-                
-                if (recordDates.has(d)) {
-                    div.classList.add('has-record');
-                }
-                
-                div.addEventListener('click', () => {
-                    document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected'));
-                    div.classList.add('selected');
-                    showDayDetails(year, month, d);
-                });
-                
-                grid.appendChild(div);
-            }
-
-            // Auto-select today if current month, else clear details
-            if (isCurrentMonth) {
-                showDayDetails(year, month, today.getDate());
-            } else {
-                showDayDetails(year, month, null);
-            }
-        }
-
-        function showDayDetails(year, month, day) {
-            const listEl = document.getElementById('calDetailList');
-            const titleEl = document.getElementById('calDetailDate');
-            
-            if (!day) {
-                titleEl.innerText = "Select a day";
-                listEl.innerHTML = `<p class="text-center text-gray-500 py-6 text-sm">No date selected.</p>`;
-                return;
-            }
-
-            const selectedDateStr = new Date(year, month, day).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric' });
-            titleEl.innerText = selectedDateStr;
-
-            const dayRecords = bpRecords.filter(r => {
-                const dt = new Date(r.timestamp);
-                return dt.getFullYear() === year && dt.getMonth() === month && dt.getDate() === day;
-            }).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // Ascending for daily view
-
-            if (dayRecords.length === 0) {
-                listEl.innerHTML = `<p class="text-center text-gray-500 py-6 text-sm">No records for this day.</p>`;
-                return;
-            }
-
-            let html = '';
-            dayRecords.forEach(rec => {
-                const timeStr = new Date(rec.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-                
-                // Determine layout indicators
-                let sysColor = rec.sys >= 130 ? 'text-red-500' : 'text-gray-800';
-                let diaColor = rec.dia >= 85 ? 'text-red-500' : 'text-gray-800';
-
-                html += `
-                <div class="p-3 flex justify-between items-center bg-white hover:bg-gray-50">
-                    <div class="font-medium text-gray-500 text-sm w-16">${timeStr}</div>
-                    <div class="flex-1 text-center">
-                        <span class="font-bold text-lg ${sysColor}">${rec.sys}</span>
-                        <span class="text-gray-400 mx-1">/</span>
-                        <span class="font-bold text-lg ${diaColor}">${rec.dia}</span>
-                    </div>
-                    <div class="w-16 text-right text-sm text-gray-500 flex justify-end items-center">
-                        <i class="fas fa-heartbeat text-red-300 mr-1 text-xs"></i> ${rec.pul}
-                    </div>
-                </div>`;
-            });
-            listEl.innerHTML = html;
-        }
-
-        function exportData() {
-            if (bpRecords.length === 0) {
-                return showAlert("Export Data", "No records available to export.");
-            }
-
-            let csvContent = "Date,Time,Systolic(SYS),Diastolic(DIA),Pulse(bpm)\n";
-            bpRecords.forEach(r => {
-                const dt = new Date(r.timestamp);
-                const d = dt.toLocaleDateString();
-                const t = dt.toLocaleTimeString();
-                csvContent += `${d},${t},${r.sys},${r.dia},${r.pul}\n`;
-            });
-
-            const shareData = {
-                title: 'My BP Records',
-                text: 'Here is a backup of my blood pressure readings:\n' + csvContent.substring(0, 500) + (csvContent.length > 500 ? '...\n(Data truncated for text, use a file for full export)' : ''),
-            };
-
-            // Attempt native share (works well on mobile for sending to Notes, Email, etc.)
-            if (navigator.share) {
-                // To share as a file specifically, some browsers need a File object
-                const blob = new Blob([csvContent], { type: 'text/csv' });
-                const file = new File([blob], "bp_backup.csv", { type: "text/csv" });
-                
-                const shareWithFile = {
-                    title: 'BP Records Backup',
-                    files: [file]
-                };
-
-                navigator.canShare = navigator.canShare || (() => true); // polyfill checking
-                
-                if (navigator.canShare(shareWithFile)) {
-                     navigator.share(shareWithFile)
-                        .then(() => console.log('Shared file successfully'))
-                        .catch(err => {
-                             console.log('Share file failed, fallback to text', err);
-                             navigator.share(shareData).catch(e => fallbackDownload(csvContent));
-                        });
-                } else {
-                     navigator.share(shareData).catch(e => fallbackDownload(csvContent));
-                }
-            } else {
-                // Fallback for non-supporting browsers (Desktop)
-                fallbackDownload(csvContent);
-            }
-        }
-
-        function fallbackDownload(content) {
-            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `bp_records_${new Date().getTime()}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // Remind to backup every ~30 unique days of data
-        function checkBackupReminder() {
-            const REMINDER_KEY = 'bp-app-last-reminder';
-            const uniqueDays = new Set(bpRecords.map(r => new Date(r.timestamp).toDateString())).size;
-            
-            if (uniqueDays >= 30) {
-                const lastReminder = localStorage.getItem(REMINDER_KEY);
-                const now = new Date().getTime();
-                // Remind max once a week (604800000 ms) if they have > 30 days of data
-                if (!lastReminder || (now - parseInt(lastReminder)) > 604800000) {
-                    showConfirm(
-                        "Backup Recommendation", 
-                        `You have recorded ${uniqueDays} days of data! It is a good time to backup your records.`, 
-                        "Backup Now",
-                        () => {
-                            document.querySelector('.nav-item[data-target="tab-settings"]').click();
-                            setTimeout(exportData, 500); // Slight delay for UI transition
-                        }
-                    );
-                    localStorage.setItem(REMINDER_KEY, now.toString());
-                }
-            }
-        }
-
-        const cameraInput = document.getElementById('cameraInput');
-        
-        cameraInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            showLoader("Reading monitor image...");
-            try {
-                const base64Data = await convertFileToBase64(file);
-                // Strip the mime type prefix to get raw base64
-                const b64Str = base64Data.split(',')[1];
-                const mimeType = file.type || "image/jpeg";
-                
-                await processImageWithGemini(b64Str, mimeType);
-            } catch (err) {
-                console.error("OCR Error:", err);
-                showAlert("Reading Failed", "Could not analyze the image. Please enter values manually or try again clearly.");
-            } finally {
-                hideLoader();
-                cameraInput.value = ''; // Reset input
-            }
-        });
-
-        function convertFileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
-
-        async function processImageWithGemini(base64Data, mimeType) {
-            // Using empty API key as instructed for Canvas environment
-            const apiKey = ""; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-            
-            const prompt = `Extract the blood pressure and pulse readings from this digital monitor image. 
-            Respond ONLY with a valid, raw JSON object (no markdown, no backticks).
-            The JSON MUST have these exactly three numeric fields: 
-            "sys" (for Systolic, highest number), 
-            "dia" (for Diastolic, middle number), 
-            "pul" (for Pulse/bpm, bottom number).
-            Example: {"sys": 120, "dia": 80, "pul": 65}
-            If you absolutely cannot find the numbers, return: {"error": true}`;
-
-            const payload = {
-                contents: [{
-                    role: "user",
-                    parts: [
-                        { text: prompt },
-                        { inlineData: { mimeType: mimeType, data: base64Data } }
-                    ]
-                }],
-                generationConfig: {
-                    temperature: 0.1, // Low temp for more deterministic factual extraction
-                    responseMimeType: "application/json"
-                }
-            };
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            const textResponse = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-            
-            if (!textResponse) throw new Error("Empty response from AI");
-            
-            // Parse JSON robustly
-            let parsedData;
-            try {
-                // In case model returns markdown code block despite instructions
-                const cleanText = textResponse.replace(/```json|```/g, '').trim();
-                parsedData = JSON.parse(cleanText);
-            } catch(e) {
-                console.error("JSON Parse failed on:", textResponse);
-                throw new Error("Invalid output format from AI");
-            }
-
-            if (parsedData.error || !parsedData.sys || !parsedData.dia || !parsedData.pul) {
-                showAlert("Detection Failed", "Could not clearly identify SYS, DIA, or PUL on the monitor. Please enter manually.");
-                return;
-            }
-
-            // Populate Form
-            document.getElementById('inputSys').value = parsedData.sys;
-            document.getElementById('inputDia').value = parsedData.dia;
-            document.getElementById('inputPul').value = parsedData.pul;
-            
-            // Subtle indication of success
-            const btn = document.querySelector('button[type="submit"]');
-            const originalBg = btn.className;
-            btn.classList.add('bg-green-500');
-            btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Detected Successfully!';
-            setTimeout(() => {
-                btn.className = originalBg;
-                btn.innerHTML = '<i class="fas fa-save mr-2"></i> Save Record';
-            }, 2000);
-        }
-
-        window.onload = () => {
-            initAuth();
-        };
-
-    </script>
+    function backupViaNotes() {
+      const text = formatBackupText();
+      if (navigator.share) {
+        navigator.share({ title: '혈압 데이터 백업', text: text });
+      } else {
+        navigator.clipboard.writeText(text);
+        alert('혈압 데이터가 클립보드에 복사되었습니다. 메모장 앱에 붙여넣어 주세요.');
+      }
+      localStorage.setItem('bp_last_backup_date', new Date().toISOString());
+    }
+  </script>
 </body>
 </html>
