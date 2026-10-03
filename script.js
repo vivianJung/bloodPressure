@@ -14,44 +14,71 @@ function openTab(tabId) {
   if (tabId === 'tab-calendar') renderCalendar();
 }
 
-// 이미지 불러오기 및 LCD 화면 검은색 뭉개짐 방지 자동 명암 처리
-function processImage(event) {
+// 이미지 처리 및 자동 숫자 인식(OCR)
+async function processImage(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  const img = new Image();
-  img.onload = function() {
-    const canvas = document.getElementById('imageCanvas');
-    const ctx = canvas.getContext('2d');
-    const hint = document.getElementById('imageStatusHint');
+  const canvas = document.getElementById('imageCanvas');
+  const ctx = canvas.getContext('2d');
+  const hint = document.getElementById('imageStatusHint');
 
+  hint.style.display = 'block';
+  hint.innerText = '🔍 사진에서 숫자를 분석하는 중입니다... (약 3~5초 소요)';
+
+  const img = new Image();
+  img.onload = async function() {
     canvas.width = img.width;
     canvas.height = img.height;
 
-    // [핵심] LCD 화면이 검게 뭉개지지 않도록 대치 감도 및 명암 밝기 자동 보정
-    ctx.filter = 'contrast(180%) brightness(110%) grayscale(100%)';
+    // LCD 명암 보정 (숫자 인식률 향상)
+    ctx.filter = 'contrast(200%) brightness(120%) grayscale(100%)';
     ctx.drawImage(img, 0, 0);
-
     canvas.style.display = 'block';
-    hint.style.display = 'none';
 
-    // (참고) 사진 인식 시 기본 수치 가이드 자동 채움 예시
-    document.getElementById('sysInput').value = 120;
-    document.getElementById('diaInput').value = 80;
-    document.getElementById('pulseInput').value = 70;
+    try {
+      // Tesseract.js 엔진으로 숫자만 추출
+      const worker = await Tesseract.createWorker('eng');
+      await worker.setParameters({
+        tessedit_char_whitelist: '0123456789', // 숫자만 인식하도록 제한
+      });
+
+      const ret = await worker.recognize(canvas);
+      await worker.terminate();
+
+      // 추출된 텍스트에서 2자리 이상의 숫자들만 추출 (예: 120, 80, 70)
+      const foundNumbers = ret.data.text.match(/\d+/g) || [];
+      const validNumbers = foundNumbers.filter(num => num.length >= 2 && num.length <= 3);
+
+      if (validNumbers.length >= 3) {
+        document.getElementById('sysInput').value = validNumbers[0]; // 첫 번째 숫자: 수축기
+        document.getElementById('diaInput').value = validNumbers[1]; // 두 번째 숫자: 이완기
+        document.getElementById('pulseInput').value = validNumbers[2]; // 세 번째 숫자: 맥박
+        hint.innerText = '✅ 숫자가 자동으로 입력되었습니다! 수치를 확인해주세요.';
+      } else if (validNumbers.length > 0) {
+        if (validNumbers[0]) document.getElementById('sysInput').value = validNumbers[0];
+        if (validNumbers[1]) document.getElementById('diaInput').value = validNumbers[1];
+        hint.innerText = '⚠️ 일부 숫자만 인식되었습니다. 빠진 수치는 직접 입력해주세요.';
+      } else {
+        hint.innerText = '❌ 숫자를 찾지 못했습니다. 숫자를 직접 입력하시거나 정면에서 다시 찍어주세요.';
+      }
+    } catch (error) {
+      console.error(error);
+      hint.innerText = '인식 중 오류가 발생했습니다. 숫자를 직접 입력해주세요.';
+    }
   };
 
   img.src = URL.createObjectURL(file);
 }
 
-// 데이터 저장기능 (Local Storage)
+// 데이터 저장 기능
 function saveRecord() {
   const sys = document.getElementById('sysInput').value;
   const dia = document.getElementById('diaInput').value;
   const pulse = document.getElementById('pulseInput').value;
 
   if (!sys || !dia || !pulse) {
-    alert('수축기, 이완기, 맥박 수치를 입력해주세요.');
+    alert('수축기, 이완기, 맥박 수치를 모두 입력해 주세요.');
     return;
   }
 
@@ -73,7 +100,7 @@ function saveRecord() {
   document.getElementById('pulseInput').value = '';
 }
 
-// 기록 목록 보기
+// 기록 목록 출력
 function renderRecords() {
   const listEl = document.getElementById('recordList');
   const records = JSON.parse(localStorage.getItem('bpRecords') || '[]');
@@ -93,7 +120,7 @@ function renderRecords() {
   `).join('');
 }
 
-// 데이터 전체 삭제
+// 전체 삭제
 function clearAllData() {
   if (confirm('모든 혈압 기록을 삭제하시겠습니까?')) {
     localStorage.removeItem('bpRecords');
@@ -101,7 +128,7 @@ function clearAllData() {
   }
 }
 
-// 선형 차트 보기
+// 선형 차트 렌더링
 let chartInstance = null;
 function renderChart() {
   const records = JSON.parse(localStorage.getItem('bpRecords') || '[]').reverse();
@@ -125,7 +152,7 @@ function renderChart() {
 function renderCalendar() {
   const records = JSON.parse(localStorage.getItem('bpRecords') || '[]');
   const calEl = document.getElementById('calendarView');
-  calEl.innerHTML = `<p style="text-align:center; padding:10px;">총 <strong>${records.length}개</strong>의 혈압 측정 데이터 기록됨</p>`;
+  calEl.innerHTML = `<p style="text-align:center; padding:10px;">총 <strong>${records.length}개</strong>의 측정 기록이 있습니다.</p>`;
 }
 
 // 폰트 크기 변경
