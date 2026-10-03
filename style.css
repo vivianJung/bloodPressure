@@ -1,0 +1,210 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  background-color: #f4f6f9;
+  color: #333;
+  padding-bottom: 30px;
+}
+
+.app-header {
+  background-color: #2563eb;
+  color: white;
+  padding: 16px;
+  text-align: center;
+}
+
+.app-header h1 {
+  font-size: 1.2rem;
+}
+
+/* 탭 메뉴 스타일 */
+.tab-menu {
+  display: flex;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  flex: 1;
+  min-width: 75px;
+  padding: 12px 6px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #6b7280;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab-btn.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  margin-bottom: 16px;
+}
+
+.btn-group {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.icon-btn {
+  flex: 1;
+  background: #eff6ff;
+  border: 1px dashed #3b82f6;
+  color: #1d4ed8;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+.image-preview-box {
+  width: 100%;
+  min-height: 180px;
+  background: #111;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+#imageCanvas {
+  max-width: 100%;
+  height: auto;
+  display: none;
+}
+
+#imageStatusHint {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  padding: 10px;
+  text-align: center;
+}
+
+.input-grid {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.input-item {
+  flex: 1;
+  background: #f9fafb;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.input-item label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.input-item input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #111827;
+}
+
+.input-item span {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.save-btn {
+  width: 100%;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.danger-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.record-list {
+  list-style: none;
+}
+
+.record-item {
+  padding: 10px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.setting-item {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+select {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
