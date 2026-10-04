@@ -49,22 +49,23 @@
         </div>
 
         <div class="input-grid">
-          <div class="input-item">
-            <label>수축기 (SYS)</label>
-            <input type="number" id="sysInput" placeholder="120">
-            <span class="unit">mmHg</span>
-          </div>
-          <div class="input-item">
-            <label>이완기 (DIA)</label>
-            <input type="number" id="diaInput" placeholder="80">
-            <span class="unit">mmHg</span>
-          </div>
-          <div class="input-item">
-            <label>맥박 (PULSE)</label>
-            <input type="number" id="pulseInput" placeholder="70">
-            <span class="unit">/min</span>
-          </div>
-        </div>
+  <div class="input-item">
+    <label>수축기 (SYS)</label>
+    <!-- inputmode와 autocomplete 설정으로 아이폰 텍스트 스캔 최적화 -->
+    <input type="text" id="sysInput" inputmode="numeric" placeholder="터치 후 텍스트스캔" autocomplete="off">
+    <span class="unit">mmHg</span>
+  </div>
+  <div class="input-item">
+    <label>이완기 (DIA)</label>
+    <input type="text" id="diaInput" inputmode="numeric" placeholder="터치 후 텍스트스캔" autocomplete="off">
+    <span class="unit">mmHg</span>
+  </div>
+  <div class="input-item">
+    <label>맥박 (PULSE)</label>
+    <input type="text" id="pulseInput" inputmode="numeric" placeholder="터치 후 텍스트스캔" autocomplete="off">
+    <span class="unit">/min</span>
+  </div>
+</div>
 
         <button class="save-btn" onclick="saveRecord()">💾 데이터 저장하기</button>
       </div>
