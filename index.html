@@ -2,106 +2,103 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>혈압 측정 및 기록</title>
   <link rel="stylesheet" href="style.css">
-  <!-- 차트 라이브러리 -->
+  <!-- 차트 및 문자 인식(OCR) 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- 이미지 텍스트 인식(OCR) 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 
-  <!-- 상단 헤더 -->
+  <!-- 파란색 상단 헤더 -->
   <header class="app-header">
-    <h1>❤️ 혈압 측정 및 기록</h1>
+    <div class="header-inner">
+      <h1 class="app-title">❤️ 혈압 측정 및 기록</h1>
+      <button class="app-install-btn">📱 앱 설치 방법</button>
+    </div>
   </header>
-
-  <!-- 상단 탭 메뉴 -->
-  <nav class="tab-menu">
-    <button class="tab-btn active" onclick="openTab('tab-input')">📷 측정/입력</button>
-    <button class="tab-btn" onclick="openTab('tab-list')">📋 기록 보기</button>
-    <button class="tab-btn" onclick="openTab('tab-calendar')">📅 달력 보기</button>
-    <button class="tab-btn" onclick="openTab('tab-chart')">📈 차트 보기</button>
-    <button class="tab-btn" onclick="openTab('tab-settings')">⚙️ 폰트 설정</button>
-  </nav>
 
   <main class="container">
 
-    <!-- 1. 혈압 측정/입력 탭 -->
-    <section id="tab-input" class="tab-content active">
+    <!-- 1. 측정 및 기록 탭 -->
+    <section id="tab-home" class="tab-content active">
+      <!-- 촬영 및 입력 카드 -->
       <div class="card">
-        <h3>📷 혈압계 촬영 / 자동 인식</h3>
+        <div class="card-header">
+          <h2>📷 혈압계 촬영/인식</h2>
+          <span class="sub-label">LCD 숫자 보정 인식</span>
+        </div>
+
         <div class="btn-group">
-          <label for="cameraInput" class="icon-btn">📷 카메라로 촬영</label>
+          <label for="cameraInput" class="icon-btn">
+            <span class="btn-icon">📷</span> 카메라로 촬영
+          </label>
           <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="processImage(event)">
-          
-          <label for="galleryInput" class="icon-btn">🖼️ 갤러리 선택</label>
+
+          <label for="galleryInput" class="icon-btn">
+            <span class="btn-icon">🖼️️</span> 갤러리 선택
+          </label>
           <input type="file" id="galleryInput" accept="image/*" onchange="processImage(event)">
         </div>
 
-        <!-- 이미지 및 안내 문구 -->
-        <div class="image-preview-box">
+        <!-- 이미지 및 안내 박스 -->
+        <div class="image-preview-box" id="previewBox" style="display:none;">
           <canvas id="imageCanvas"></canvas>
-          <p id="imageStatusHint">혈압계 사진을 선택하면 숫자를 자동으로 읽어옵니다.</p>
+          <p id="imageStatusHint"></p>
         </div>
 
-        <!-- 입력 폼 -->
         <div class="input-grid">
           <div class="input-item">
             <label>수축기 (SYS)</label>
-            <input type="number" id="sysInput" placeholder="--">
-            <span>mmHg</span>
+            <input type="number" id="sysInput" placeholder="120">
+            <span class="unit">mmHg</span>
           </div>
           <div class="input-item">
             <label>이완기 (DIA)</label>
-            <input type="number" id="diaInput" placeholder="--">
-            <span>mmHg</span>
+            <input type="number" id="diaInput" placeholder="80">
+            <span class="unit">mmHg</span>
           </div>
           <div class="input-item">
             <label>맥박 (PULSE)</label>
-            <input type="number" id="pulseInput" placeholder="--">
-            <span>/min</span>
+            <input type="number" id="pulseInput" placeholder="70">
+            <span class="unit">/min</span>
           </div>
         </div>
 
         <button class="save-btn" onclick="saveRecord()">💾 데이터 저장하기</button>
       </div>
-    </section>
 
-    <!-- 2. 기록 보기 탭 -->
-    <section id="tab-list" class="tab-content">
+      <!-- 측정 기록 카드 -->
       <div class="card">
-        <div class="card-header-flex">
-          <h3>📋 측정 기록 목록</h3>
+        <div class="card-header">
+          <h2><span class="chart-icon">📊</span> 측정 기록</h2>
           <button class="danger-btn" onclick="clearAllData()">전체 삭제</button>
         </div>
-        <ul id="recordList" class="record-list"></ul>
+        <div id="recordList" class="record-list"></div>
       </div>
     </section>
 
-    <!-- 3. 달력 보기 탭 -->
-    <section id="tab-calendar" class="tab-content">
+    <!-- 2. 분석 탭 (선형 차트) -->
+    <section id="tab-analysis" class="tab-content">
       <div class="card">
-        <h3>📅 월별 혈압 달력</h3>
-        <div id="calendarView"></div>
+        <div class="card-header">
+          <h2>📊 혈압 변화 분석</h2>
+        </div>
+        <div class="chart-container">
+          <canvas id="bpChart"></canvas>
+        </div>
       </div>
     </section>
 
-    <!-- 4. 선형 차트 보기 탭 -->
-    <section id="tab-chart" class="tab-content">
-      <div class="card">
-        <h3>📈 혈압 변화 추이</h3>
-        <canvas id="bpChart"></canvas>
-      </div>
-    </section>
-
-    <!-- 5. 폰트 설정 탭 -->
+    <!-- 3. 설정 탭 -->
     <section id="tab-settings" class="tab-content">
       <div class="card">
-        <h3>⚙️ 앱 글꼴 및 크기 설정</h3>
+        <div class="card-header">
+          <h2>⚙️ 앱 설정</h2>
+        </div>
         <div class="setting-item">
-          <label for="fontSizeSelect">글자 크기:</label>
+          <label for="fontSizeSelect">글자 크기 설정</label>
           <select id="fontSizeSelect" onchange="changeFontSize(this.value)">
             <option value="14px">작게</option>
             <option value="16px" selected>보통</option>
@@ -113,6 +110,22 @@
     </section>
 
   </main>
+
+  <!-- 앱 하단 메뉴 바 (독립 앱 스타일) -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchTab('tab-home', this)">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">측정/기록</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('tab-analysis', this)">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">분석</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('tab-settings', this)">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">설정</span>
+    </button>
+  </nav>
 
   <script src="script.js"></script>
 </body>
