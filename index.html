@@ -237,7 +237,7 @@
       lucide.createIcons();
       resetFormDateTime();
       renderList();
-      checkBackupReminder(false);
+      // checkBackupReminder(false);
       
       const savedScale = localStorage.getItem('bp_font_scale');
       if (savedScale) {
@@ -592,23 +592,11 @@
     }
 
     function checkBackupReminder(manual = false) {
-      const lastBackup = localStorage.getItem('bp_last_backup_date');
-      const now = new Date();
-      let needBackup = false;
-
-      if (!lastBackup) {
-        if (records.length > 0) needBackup = true;
-      } else {
-        const diffDays = (now - new Date(lastBackup)) / (1000 * 60 * 60 * 24);
-        if (diffDays >= 30) needBackup = true;
-      }
-
-      if (needBackup || manual) {
-        if (confirm(`백업 점검 안내\n백업점검이 필요하거나 정기 점검 주기입니다.\n지금 데이터를 백업하시겠습니까?`)) {
-          switchTab('settings');
-        }
-      }
-    }
+  if (manual) {
+    alert("백업 점검 페이지로 이동합니다.");
+    switchTab('settings');
+  }
+}
 
     function formatBackupText() {
       return records.map(r => `${r.date} ${r.time} 수축기:${r.sys} 이완기:${r.dia} 맥박:${r.pulse}`).join('\n');
